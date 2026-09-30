@@ -5,7 +5,7 @@
   --accent: #d9421c;
   --track: #e3dfd2;
   --drop-over: #f6c9b9;
-  --checker: #22211a;
+  --checker: #3a382d;
   --sans: 'Familjen Grotesk', system-ui, sans-serif;
   --mono: 'DM Mono', ui-monospace, monospace;
   color-scheme: light;
@@ -240,7 +240,9 @@ button {
   cursor: ew-resize;
   touch-action: none;
   user-select: none;
-  background: #000;
+  background-color: var(--ink);
+  background-image: repeating-conic-gradient(var(--checker) 0 25%, var(--ink) 0 50%);
+  background-size: 20px 20px;
 }
 
 .compare-frame[data-zoomed='true'] {
@@ -251,6 +253,13 @@ button {
 .compare-layer {
   position: absolute;
   inset: 0;
+}
+
+/* Opaque checker so transparent pixels of the compressed image do not show the original. */
+.compare-clip {
+  background-color: var(--ink);
+  background-image: repeating-conic-gradient(var(--checker) 0 25%, var(--ink) 0 50%);
+  background-size: 20px 20px;
 }
 
 .compare-layer {
