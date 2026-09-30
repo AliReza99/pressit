@@ -32,6 +32,8 @@ export type Settings = {
 export type Item = {
   key: string;
   file: File;
+  /** Editable download name, without extension. */
+  name: string;
   url: string;
   info: SourceInfo;
   /**
@@ -53,7 +55,9 @@ const dimsOf = ({ info, settings }: Item): Dimensions =>
     h: Math.max(1, Math.round((info.height * settings.scale) / 100)),
   };
 
-const downloadName = ({ file, settings }: Item) => `${file.name.replace(/\.[^.]+$/, '')}-squeezed.${extensionFor(settings.format)}`;
+const defaultName = (file: File) => `${file.name.replace(/\.[^.]+$/, '')}-squeezed`;
+
+const downloadName = ({ name, settings }: Item) => `${name}.${extensionFor(settings.format)}`;
 
 const save = (item: Item) => {
   if (!item.output) return;
@@ -169,6 +173,7 @@ export const useSqueeze = () => {
       const item: Item = {
         key: String(++nextKey.current),
         file,
+        name: defaultName(file),
         url: URL.createObjectURL(file),
         info,
         remote: { id: info.id },
@@ -241,6 +246,16 @@ export const useSqueeze = () => {
       running.delete(key);
     }
   }, [items, schedule]);
+
+  const rename = useCallback(
+    (key: string, name: string) => {
+      // Path separators and control characters are not valid in download names.
+      const clean = name.replace(/[\\/:*?"<>|\u0000-\u001f]/g, '').trim();
+      const item = itemsRef.current.find(i => i.key === key);
+      if (item) patch(key, { name: clean || defaultName(item.file) });
+    },
+    [patch],
+  );
 
   const select = useCallback((key: string) => setActiveKey(key), []);
 
@@ -356,6 +371,7 @@ export const useSqueeze = () => {
     notice,
     load,
     select,
+    rename,
     remove,
     clear,
     setScale,

@@ -9,7 +9,10 @@ type CompareProps = {
   height: number;
   beforeLabel: string;
   afterLabel: string;
-  fileName: string;
+  name: string;
+  extension: string;
+  position: string | null;
+  onRename: (name: string) => void;
   onFiles: (files: File[]) => void;
   onRemove: () => void;
 };
@@ -27,7 +30,34 @@ const clampView = (v: View, w: number, h: number): View => ({
   y: clamp(v.y, h * (1 - v.zoom), 0),
 });
 
-export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, afterLabel, fileName, onFiles, onRemove }: CompareProps) => {
+const NameField = ({ value, onCommit }: { value: string; onCommit: (name: string) => void }) => {
+  const [draft, setDraft] = useState<string | null>(null);
+  const finish = (save: boolean) => {
+    if (save && draft !== null) onCommit(draft);
+    setDraft(null);
+  };
+  return (
+    <input
+      className="name-field"
+      aria-label="File name for download"
+      title="Click to rename"
+      spellCheck={false}
+      value={draft ?? value}
+      size={Math.max(4, (draft ?? value).length)}
+      onChange={e => setDraft(e.target.value)}
+      onBlur={() => finish(true)}
+      onKeyDown={e => {
+        if (e.key === 'Enter') e.currentTarget.blur();
+        else if (e.key === 'Escape') {
+          finish(false);
+          e.currentTarget.blur();
+        }
+      }}
+    />
+  );
+};
+
+export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, afterLabel, name, extension, position, onRename, onFiles, onRemove }: CompareProps) => {
   const [split, setSplit] = useState(50);
   const [view, setView] = useState<View>(FIT);
   const frameRef = useRef<HTMLDivElement>(null);
@@ -98,7 +128,7 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
   return (
     <div className="compare" {...handlers}>
       <div className="compare-stage" data-over={over}>
-        <button type="button" className="compare-remove" aria-label={`Remove ${fileName}`} onClick={onRemove}>
+        <button type="button" className="compare-remove" aria-label={`Remove ${name}.${extension}`} onClick={onRemove}>
           ×
         </button>
         <div
@@ -135,7 +165,11 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
         </div>
       </div>
       <div className="caption">
-        <span>{fileName}</span>
+        <span className="caption-name">
+          <NameField key={originalUrl} value={name} onCommit={onRename} />
+          <span>.{extension}</span>
+          {position && <span> ({position})</span>}
+        </span>
         <span>drag or shift+←/→ to compare · ←/→ switch image · wheel zoom · dbl-click reset</span>
       </div>
     </div>

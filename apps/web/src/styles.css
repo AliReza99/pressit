@@ -345,6 +345,30 @@ button {
   flex-wrap: wrap;
 }
 
+.caption-name {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+}
+
+.name-field {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dashed var(--ink);
+  padding: 0;
+  max-width: 40ch;
+  cursor: text;
+}
+
+.name-field:hover,
+.name-field:focus {
+  outline: 0;
+  border-bottom-style: solid;
+  background: var(--paper);
+}
+
 /* Queue */
 
 .queue {

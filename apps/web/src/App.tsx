@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react';
+import { extensionFor } from '@squeeze/shared';
 import { Compare } from './components/Compare';
 import { DropZone } from './components/DropZone';
 import { Queue } from './components/Queue';
@@ -55,7 +56,10 @@ export const App = () => {
               height={dims.h}
               beforeLabel={formatBytes(source.info.size)}
               afterLabel={output ? formatBytes(output.blob.size) : '…'}
-              fileName={squeeze.items.length > 1 ? `${source.file.name} (${squeeze.items.indexOf(source) + 1}/${squeeze.items.length})` : source.file.name}
+              name={source.name}
+              extension={extensionFor(source.settings.format)}
+              position={squeeze.items.length > 1 ? `${squeeze.items.indexOf(source) + 1}/${squeeze.items.length}` : null}
+              onRename={name => squeeze.rename(source.key, name)}
               onFiles={onFiles}
               onRemove={() => squeeze.remove(source.key)}
             />
