@@ -1,0 +1,16 @@
+{
+  "name": "squeeze",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @squeeze/api --filter @squeeze/web dev",
+    "build": "pnpm --filter @squeeze/web build && pnpm --filter @squeeze/api build",
+    "start": "pnpm --filter @squeeze/api start",
+    "typecheck": "pnpm -r typecheck",
+    "test": "pnpm -r test"
+  }
+}

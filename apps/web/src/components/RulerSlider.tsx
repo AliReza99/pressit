@@ -1,0 +1,75 @@
+import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { clamp } from '../lib/format';
+
+type RulerSliderProps = {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  onChange: (value: number) => void;
+  disabled?: boolean;
+  valueText?: string;
+};
+
+/** Tick-mark ruler with a square orange handle, from the Squeeze design. */
+export const RulerSlider = ({ label, value, min, max, onChange, disabled = false, valueText }: RulerSliderProps) => {
+  const dragging = useRef(false);
+
+  const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const t = clamp((e.clientX - r.left) / r.width, 0, 1);
+    onChange(Math.round(min + t * (max - min)));
+  };
+
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    dragging.current = true;
+    e.currentTarget.setPointerCapture(e.pointerId);
+    fromPointer(e);
+  };
+
+  const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
+    if (disabled) return;
+    const step = e.shiftKey ? 10 : 1;
+    const next =
+      e.key === 'ArrowRight' || e.key === 'ArrowUp'
+        ? value + step
+        : e.key === 'ArrowLeft' || e.key === 'ArrowDown'
+          ? value - step
+          : e.key === 'PageUp'
+            ? value + 10
+            : e.key === 'PageDown'
+              ? value - 10
+              : e.key === 'Home'
+                ? min
+                : e.key === 'End'
+                  ? max
+                  : null;
+    if (next === null) return;
+    e.preventDefault();
+    onChange(clamp(next, min, max));
+  };
+
+  return (
+    <div
+      className="ruler"
+      role="slider"
+      tabIndex={disabled ? -1 : 0}
+      aria-label={label}
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      aria-valuetext={valueText}
+      aria-disabled={disabled}
+      data-disabled={disabled}
+      onPointerDown={onPointerDown}
+      onPointerMove={e => dragging.current && fromPointer(e)}
+      onPointerUp={() => (dragging.current = false)}
+      onPointerCancel={() => (dragging.current = false)}
+      onKeyDown={onKeyDown}
+    >
+      <div className="ruler-track" />
+      <div className="ruler-handle" style={{ left: `${((value - min) / (max - min)) * 100}%` }} />
+    </div>
+  );
+};
