@@ -6,7 +6,6 @@ import { DimensionInput } from './DimensionInput';
 import { RulerSlider } from './RulerSlider';
 import { Segmented } from './Segmented';
 
-const PRESETS = [25, 50, 75, 100].map(v => ({ value: v, label: `${v}%` }));
 const FORMATS: ReadonlyArray<{ value: OutputFormat; label: string }> = [
   { value: 'jpeg', label: 'JPG' },
   { value: 'webp', label: 'WEBP' },
@@ -87,10 +86,8 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
       </button>
 
       <div id="compression-settings" hidden={collapsed}>
-        <Section title="SIZE" meta={info && dims ? `${info.width}×${info.height} → ${dims.w}×${dims.h}` : '—'}>
-          <Segmented label="Scale presets" options={PRESETS} value={isCustomSize ? null : scale} onChange={squeeze.setScale} />
+        <Section title="SIZE" meta={`${scale}%`}>
           <RulerSlider label="Scale" value={scale} min={SCALE_MIN} max={SCALE_MAX} onChange={squeeze.setScale} valueText={`${scale}%`} />
-          <div className="note">{scale}% of original dimensions</div>
           <div className="dims">
             <DimensionInput label="WIDTH PX" value={dims?.w ?? null} onCommit={v => squeeze.setDimension('w', v)} />
             <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={squeeze.toggleLock}>
@@ -101,7 +98,7 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
           <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked, image may stretch'}</div>
         </Section>
 
-        <Section title="QUALITY" meta={lossless ? 'LOSSLESS' : `${quality}/100`}>
+        <Section title="QUALITY" meta={lossless ? 'LOSSLESS' : `${quality}%`}>
           <RulerSlider
             label="Quality"
             value={quality}

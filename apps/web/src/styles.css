@@ -650,6 +650,9 @@ button {
   grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
   gap: 6px;
   align-items: end;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--ink);
 }
 
 .dim {
