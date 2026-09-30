@@ -5,7 +5,6 @@
   --accent: #d9421c;
   --track: #e3dfd2;
   --drop-over: #f6c9b9;
-  --checker: #3a382d;
   --sans: 'Familjen Grotesk', system-ui, sans-serif;
   --mono: 'DM Mono', ui-monospace, monospace;
   color-scheme: light;
@@ -214,6 +213,16 @@ button {
   gap: 6px;
 }
 
+.compare-stage,
+.compare-frame,
+.compare-clip {
+  /* Transparency backdrop: grid of rounded tiles. The clip layer needs it too
+     so the compressed image does not reveal the original. */
+  background-color: var(--ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect x='1.5' y='1.5' width='5' height='5' rx='1.25' fill='%23201f18'/%3E%3C/svg%3E");
+  background-size: 8px 8px;
+}
+
 .compare-stage {
   position: relative;
   flex: 1;
@@ -224,9 +233,6 @@ button {
   display: flex;
   justify-content: center;
   align-items: center;
-  background-color: var(--ink);
-  background-image: repeating-conic-gradient(var(--checker) 0 25%, var(--ink) 0 50%);
-  background-size: 20px 20px;
 }
 
 .compare-stage[data-over='true'] {
@@ -240,9 +246,6 @@ button {
   cursor: ew-resize;
   touch-action: none;
   user-select: none;
-  background-color: var(--ink);
-  background-image: repeating-conic-gradient(var(--checker) 0 25%, var(--ink) 0 50%);
-  background-size: 20px 20px;
 }
 
 .compare-frame[data-zoomed='true'] {
@@ -253,13 +256,6 @@ button {
 .compare-layer {
   position: absolute;
   inset: 0;
-}
-
-/* Opaque checker so transparent pixels of the compressed image do not show the original. */
-.compare-clip {
-  background-color: var(--ink);
-  background-image: repeating-conic-gradient(var(--checker) 0 25%, var(--ink) 0 50%);
-  background-size: 20px 20px;
 }
 
 .compare-layer {
