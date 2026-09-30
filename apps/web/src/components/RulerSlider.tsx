@@ -23,7 +23,7 @@ export const RulerSlider = ({ label, value, min, max, onChange, disabled = false
     const onWheel = (e: WheelEvent) => {
       if (e.deltaY === 0) return;
       e.preventDefault();
-      const step = e.shiftKey ? 10 : 1;
+      const step = e.shiftKey ? 10 : 5;
       onChange(clamp(value + (e.deltaY < 0 ? step : -step), min, max));
     };
     el.addEventListener('wheel', onWheel, { passive: false });
@@ -33,7 +33,8 @@ export const RulerSlider = ({ label, value, min, max, onChange, disabled = false
   const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const t = clamp((e.clientX - r.left) / r.width, 0, 1);
-    onChange(Math.round(min + t * (max - min)));
+    const raw = min + t * (max - min);
+    onChange(clamp(Math.round(raw / 5) * 5, min, max));
   };
 
   const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
