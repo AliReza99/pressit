@@ -4,11 +4,11 @@ import { useEffect } from 'react';
  * Accepts images pasted anywhere on the page, and stops the browser from
  * navigating to a file dropped outside the drop targets.
  */
-export const useGlobalImageInput = (onImage: (file: File) => void) => {
+export const useGlobalImageInput = (onImages: (files: File[]) => void) => {
   useEffect(() => {
     const onPaste = (e: ClipboardEvent) => {
-      const file = [...(e.clipboardData?.files ?? [])].find(f => f.type.startsWith('image/'));
-      if (file) onImage(file);
+      const files = [...(e.clipboardData?.files ?? [])].filter(f => f.type.startsWith('image/'));
+      if (files.length) onImages(files);
     };
     const block = (e: DragEvent) => e.preventDefault();
 
@@ -20,5 +20,5 @@ export const useGlobalImageInput = (onImage: (file: File) => void) => {
       window.removeEventListener('dragover', block);
       window.removeEventListener('drop', block);
     };
-  }, [onImage]);
+  }, [onImages]);
 };

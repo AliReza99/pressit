@@ -2,11 +2,11 @@ import { useState, type DragEvent } from 'react';
 
 type DropZoneProps = {
   onPick: () => void;
-  onFile: (file: File | undefined) => void;
+  onFiles: (files: File[]) => void;
   uploading: boolean;
 };
 
-export const useDragOver = (onFile: (file: File | undefined) => void) => {
+export const useDragOver = (onFiles: (files: File[]) => void) => {
   const [over, setOver] = useState(false);
   return {
     over,
@@ -22,14 +22,14 @@ export const useDragOver = (onFile: (file: File | undefined) => void) => {
       onDrop: (e: DragEvent<HTMLElement>) => {
         e.preventDefault();
         setOver(false);
-        onFile(e.dataTransfer.files[0]);
+        onFiles([...e.dataTransfer.files]);
       },
     },
   };
 };
 
-export const DropZone = ({ onPick, onFile, uploading }: DropZoneProps) => {
-  const { over, handlers } = useDragOver(onFile);
+export const DropZone = ({ onPick, onFiles, uploading }: DropZoneProps) => {
+  const { over, handlers } = useDragOver(onFiles);
 
   return (
     <button type="button" className="dropzone" data-over={over} onClick={onPick} aria-busy={uploading} {...handlers}>
@@ -43,13 +43,13 @@ export const DropZone = ({ onPick, onFile, uploading }: DropZoneProps) => {
           <>
             Reading
             <br />
-            your image…
+            your images…
           </>
         ) : (
           <>
-            Drop an image
+            Drop images
             <br />
-            to shrink it
+            to shrink them
           </>
         )}
       </span>

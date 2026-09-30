@@ -1,5 +1,4 @@
 import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import { useWindowHeight } from '../hooks/useWindowHeight';
 import { clamp } from '../lib/format';
 import { useDragOver } from './DropZone';
 
@@ -11,18 +10,15 @@ type CompareProps = {
   beforeLabel: string;
   afterLabel: string;
   fileName: string;
-  onFile: (file: File | undefined) => void;
+  onFiles: (files: File[]) => void;
 };
 
-// Header, gaps and caption take roughly this much of the viewport.
-const CHROME_PX = 170;
-
-export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, afterLabel, fileName, onFile }: CompareProps) => {
+export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, afterLabel, fileName, onFiles }: CompareProps) => {
   const [split, setSplit] = useState(50);
   const dragging = useRef(false);
-  const windowHeight = useWindowHeight();
-  const { over, handlers } = useDragOver(onFile);
-  const maxW = Math.max(200, Math.round((width / height) * (windowHeight - CHROME_PX)));
+  const { over, handlers } = useDragOver(onFiles);
+  // The stage is a size container filling the available height; cap width so the frame never exceeds it.
+  const maxW = `min(100%, calc(100cqh * ${width / height}))`;
 
   const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();

@@ -1,6 +1,7 @@
 import { useCallback, useRef } from 'react';
 import { Compare } from './components/Compare';
 import { DropZone } from './components/DropZone';
+import { Queue } from './components/Queue';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useGlobalImageInput } from './hooks/useGlobalImageInput';
 import { useSqueeze } from './hooks/useSqueeze';
@@ -8,12 +9,12 @@ import { formatBytes } from './lib/format';
 
 export const App = () => {
   const squeeze = useSqueeze();
-  const { source, output, dims, load, error, working } = squeeze;
+  const { source, output, dims, load, error, notice, working } = squeeze;
   const input = useRef<HTMLInputElement>(null);
 
   const pick = useCallback(() => input.current?.click(), []);
-  const onFile = useCallback((file: File | undefined) => void load(file), [load]);
-  useGlobalImageInput(onFile);
+  const onFiles = useCallback((files: File[]) => void load(files), [load]);
+  useGlobalImageInput(onFiles);
 
   return (
     <div className="app">
@@ -25,17 +26,18 @@ export const App = () => {
           <span className="tagline">image press / runs on your machine, nothing leaves it</span>
         </div>
         <button type="button" className="btn-outline" onClick={pick}>
-          + NEW IMAGE
+          + ADD IMAGES
         </button>
       </header>
 
       <input
         ref={input}
         type="file"
+        multiple
         accept="image/*"
         hidden
         onChange={e => {
-          onFile(e.target.files?.[0]);
+          onFiles([...(e.target.files ?? [])]);
           e.target.value = '';
         }}
       />
@@ -50,14 +52,15 @@ export const App = () => {
               height={dims.h}
               beforeLabel={formatBytes(source.info.size)}
               afterLabel={output ? formatBytes(output.blob.size) : '…'}
-              fileName={source.info.name}
-              onFile={onFile}
+              fileName={squeeze.items.length > 1 ? `${source.file.name} (${squeeze.items.indexOf(source) + 1}/${squeeze.items.length})` : source.file.name}
+              onFiles={onFiles}
             />
           ) : (
-            <DropZone onPick={pick} onFile={onFile} uploading={squeeze.uploading} />
+            <DropZone onPick={pick} onFiles={onFiles} uploading={squeeze.uploading} />
           )}
+          <Queue squeeze={squeeze} onPick={pick} onFiles={onFiles} />
           <div className="status" role="status" aria-live="polite">
-            {error ? <span className="status-error">{error}</span> : working ? 'squeezing…' : null}
+            {error ? <span className="status-error">{error}</span> : (notice ?? (working ? 'squeezing…' : null))}
           </div>
         </div>
         <SettingsPanel squeeze={squeeze} />

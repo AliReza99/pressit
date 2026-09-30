@@ -6,7 +6,7 @@ import { DimensionInput } from './DimensionInput';
 import { RulerSlider } from './RulerSlider';
 import { Segmented } from './Segmented';
 
-const PRESETS = [100, 75, 50, 25].map(v => ({ value: v, label: `${v}%` }));
+const PRESETS = [25, 50, 75, 100].map(v => ({ value: v, label: `${v}%` }));
 const FORMATS: ReadonlyArray<{ value: OutputFormat; label: string }> = [
   { value: 'jpeg', label: 'JPG' },
   { value: 'webp', label: 'WEBP' },
@@ -111,6 +111,16 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
         <button type="button" className="download" disabled={!output} onClick={squeeze.download}>
           DOWNLOAD {extensionFor(format).toUpperCase()} ↓
         </button>
+        {squeeze.items.length > 1 && (
+          <div className="batch">
+            <button type="button" className="download download-alt" disabled={squeeze.readyCount === 0} onClick={() => void squeeze.downloadAll()}>
+              DOWNLOAD ALL ({squeeze.readyCount}/{squeeze.items.length}) ↓
+            </button>
+            <button type="button" className="btn-outline" onClick={squeeze.applyToAll}>
+              APPLY THESE SETTINGS TO ALL
+            </button>
+          </div>
+        )}
       </section>
     </aside>
   );

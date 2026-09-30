@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { MAX_DIMENSION } from '@squeeze/shared';
 
 type DimensionInputProps = {
@@ -7,17 +7,23 @@ type DimensionInputProps = {
   onCommit: (value: number) => void;
 };
 
+const COMMIT_DEBOUNCE_MS = 300;
+
 /**
  * Keeps its own draft text so the field can be cleared while typing. Valid
- * numbers apply immediately; blur restores the applied value.
+ * numbers are debounced so a resize/compress doesn't fire on every keystroke;
+ * blur restores the applied value.
  */
 export const DimensionInput = ({ label, value, onCommit }: DimensionInputProps) => {
   const [draft, setDraft] = useState(value === null ? '' : String(value));
   const [focused, setFocused] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (!focused) setDraft(value === null ? '' : String(value));
   }, [value, focused]);
+
+  useEffect(() => () => clearTimeout(timer.current), []);
 
   return (
     <label className="dim">
@@ -36,10 +42,17 @@ export const DimensionInput = ({ label, value, onCommit }: DimensionInputProps) 
         onBlur={() => setFocused(false)}
         onChange={e => {
           setDraft(e.target.value);
+          clearTimeout(timer.current);
           const n = Number(e.target.value);
-          if (e.target.value !== '' && n >= 1) onCommit(n);
+          if (e.target.value.length >= 2 && n >= 1) timer.current = setTimeout(() => onCommit(n), COMMIT_DEBOUNCE_MS);
         }}
-        onKeyDown={e => e.key === 'Enter' && e.currentTarget.blur()}
+        onKeyDown={e => {
+          if (e.key !== 'Enter') return;
+          clearTimeout(timer.current);
+          const n = Number(e.currentTarget.value);
+          if (e.currentTarget.value !== '' && n >= 1) onCommit(n);
+          e.currentTarget.blur();
+        }}
       />
     </label>
   );

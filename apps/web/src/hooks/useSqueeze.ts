@@ -11,17 +11,6 @@ export const QUALITY_MAX = 100;
 
 const DEBOUNCE_MS = 90;
 
-export type Source = {
-  file: File;
-  url: string;
-  info: SourceInfo;
-  /**
-   * Server-side id, mutable because it changes if the API restarted and the
-   * image had to be uploaded again. Mutating it must not re-run compression.
-   */
-  remote: { id: string };
-};
-
 export type Output = CompressedImage & {
   url: string;
 };
@@ -31,112 +20,233 @@ export type Dimensions = {
   h: number;
 };
 
+export type Settings = {
+  scale: number;
+  /** Explicit size that overrides `scale`, null while following the scale. */
+  custom: Dimensions | null;
+  quality: number;
+  format: OutputFormat;
+  keepExif: boolean;
+};
+
+export type Item = {
+  key: string;
+  file: File;
+  url: string;
+  info: SourceInfo;
+  /**
+   * Server-side id, mutable because it changes if the API restarted and the
+   * image had to be uploaded again. Mutating it must not re-run compression.
+   */
+  remote: { id: string };
+  settings: Settings;
+  output: Output | null;
+  working: boolean;
+  error: string | null;
+};
+
 const isImage = (file: File) => file.type.startsWith('image/') || file.type === '';
 
+const dimsOf = ({ info, settings }: Item): Dimensions =>
+  settings.custom ?? {
+    w: Math.max(1, Math.round((info.width * settings.scale) / 100)),
+    h: Math.max(1, Math.round((info.height * settings.scale) / 100)),
+  };
+
+const downloadName = ({ file, settings }: Item) => `${file.name.replace(/\.[^.]+$/, '')}-squeezed.${extensionFor(settings.format)}`;
+
+const save = (item: Item) => {
+  if (!item.output) return;
+  const a = document.createElement('a');
+  a.href = item.output.url;
+  a.download = downloadName(item);
+  a.click();
+};
+
+const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const DEFAULT_SETTINGS: Omit<Settings, 'format'> = { scale: 60, custom: null, quality: 70, keepExif: false };
+
 export const useSqueeze = () => {
-  const [source, setSource] = useState<Source | null>(null);
-  const [output, setOutput] = useState<Output | null>(null);
-  const [scale, setScaleValue] = useState(60);
-  const [custom, setCustom] = useState<Dimensions | null>(null);
+  const [items, setItems] = useState<Item[]>([]);
+  const [activeKey, setActiveKey] = useState<string | null>(null);
   const [lock, setLock] = useState(true);
-  const [quality, setQuality] = useState(70);
-  const [format, setFormat] = useState<OutputFormat>('jpeg');
-  const [keepExif, setKeepExif] = useState(false);
-  const [uploading, setUploading] = useState(false);
-  const [working, setWorking] = useState(false);
+  const [pending, setPending] = useState(0);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
 
-  const loadToken = useRef(0);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const activeKeyRef = useRef(activeKey);
+  activeKeyRef.current = activeKey;
+  const nextKey = useRef(0);
+  const jobs = useRef(new Map<string, { sig: string; cancel: () => void }>());
 
-  const dims = useMemo<Dimensions | null>(() => {
-    if (!source) return null;
-    if (custom) return custom;
-    const { width, height } = source.info;
-    return {
-      w: Math.max(1, Math.round((width * scale) / 100)),
-      h: Math.max(1, Math.round((height * scale) / 100)),
-    };
-  }, [source, custom, scale]);
+  const active = useMemo(() => items.find(i => i.key === activeKey) ?? null, [items, activeKey]);
+  const dims = useMemo(() => (active ? dimsOf(active) : null), [active]);
 
-  // Free object URLs and the server copy once a source or output is replaced.
-  useEffect(() => {
-    if (!source) return;
-    return () => {
-      URL.revokeObjectURL(source.url);
-      releaseImage(source.remote.id);
-    };
-  }, [source]);
-
-  useEffect(() => {
-    if (!output) return;
-    return () => URL.revokeObjectURL(output.url);
-  }, [output]);
-
-  const load = useCallback(async (file: File | null | undefined) => {
-    if (!file) return;
-    if (!isImage(file)) return setError('That file is not an image');
-    if (file.size > MAX_UPLOAD_BYTES) return setError('File is larger than 50 MB');
-
-    const token = ++loadToken.current;
-    setError(null);
-    setUploading(true);
-    const [err, info] = await to(uploadImage(file));
-    if (token !== loadToken.current) return;
-    setUploading(false);
-    if (err) return setError(err.message);
-
-    setSource({ file, url: URL.createObjectURL(file), info, remote: { id: info.id } });
-    setOutput(null);
-    setCustom(null);
-    setFormat(formatFromMime(file.type));
+  const patch = useCallback((key: string, change: Partial<Item> | ((item: Item) => Partial<Item>)) => {
+    setItems(prev => prev.map(i => (i.key === key ? { ...i, ...(typeof change === 'function' ? change(i) : change) } : i)));
   }, []);
 
-  const w = dims?.w;
-  const h = dims?.h;
+  const patchSettings = useCallback(
+    (key: string, change: Partial<Settings>) => patch(key, i => ({ settings: { ...i.settings, ...change } })),
+    [patch],
+  );
+
+  // Free object URLs, server copies and pending requests on unmount.
   useEffect(() => {
-    if (!source || !w || !h) return;
-    const ctrl = new AbortController();
-    const options = { width: w, height: h, quality, format, keepExif };
-
-    const run = async () => {
-      setWorking(true);
-      let [err, result] = await to(compressImage(source.remote.id, options, ctrl.signal));
-
-      if (err instanceof HttpError && err.status === 404) {
-        const [uploadErr, info] = await to(uploadImage(source.file, ctrl.signal));
-        if (!uploadErr) {
-          source.remote.id = info.id;
-          [err, result] = await to(compressImage(info.id, options, ctrl.signal));
-        } else {
-          err = uploadErr;
-        }
+    const running = jobs.current;
+    return () => {
+      for (const job of running.values()) job.cancel();
+      running.clear();
+      for (const item of itemsRef.current) {
+        URL.revokeObjectURL(item.url);
+        if (item.output) URL.revokeObjectURL(item.output.url);
+        releaseImage(item.remote.id);
       }
-
-      if (ctrl.signal.aborted) return;
-      setWorking(false);
-      if (err || !result) return setError(err?.message ?? 'Compression failed');
-      setError(null);
-      setOutput({ ...result, url: URL.createObjectURL(result.blob) });
     };
-
-    const timer = setTimeout(run, DEBOUNCE_MS);
-    return () => {
-      clearTimeout(timer);
-      ctrl.abort();
-    };
-  }, [source, w, h, quality, format, keepExif]);
-
-  const setScale = useCallback((value: number) => {
-    setScaleValue(clamp(Math.round(value), SCALE_MIN, SCALE_MAX));
-    setCustom(null);
   }, []);
+
+  const load = useCallback(async (files: readonly File[]) => {
+    if (files.length === 0) return;
+    const images = files.filter(isImage);
+    const valid = images.filter(f => f.size <= MAX_UPLOAD_BYTES);
+    if (valid.length === 0) {
+      const plural = files.length > 1;
+      return setError(images.length === 0 ? `${plural ? 'Those files are' : 'That file is'} not an image` : `${plural ? 'Files are' : 'File is'} larger than 50 MB`);
+    }
+
+    const skipped = files.length - valid.length;
+    setError(null);
+    setNotice(skipped ? `${skipped} file${skipped > 1 ? 's' : ''} skipped, not an image or over 50 MB` : null);
+    setPending(n => n + valid.length);
+
+    let first = true;
+    let failure: string | null = null;
+    // One at a time so the API is not flooded and thumbnails appear in order.
+    for (const file of valid) {
+      const [err, info] = await to(uploadImage(file));
+      setPending(n => n - 1);
+      if (err) {
+        failure = err.message;
+        continue;
+      }
+      const inherited = itemsRef.current.find(i => i.key === activeKeyRef.current)?.settings ?? DEFAULT_SETTINGS;
+      const item: Item = {
+        key: String(++nextKey.current),
+        file,
+        url: URL.createObjectURL(file),
+        info,
+        remote: { id: info.id },
+        settings: { ...inherited, custom: null, format: formatFromMime(file.type) },
+        output: null,
+        working: false,
+        error: null,
+      };
+      setItems(prev => [...prev, item]);
+      if (first) setActiveKey(item.key);
+      first = false;
+    }
+    if (failure) setError(failure);
+  }, []);
+
+  const schedule = useCallback(
+    (item: Item, { w, h }: Dimensions) => {
+      const ctrl = new AbortController();
+      const { quality, format, keepExif } = item.settings;
+      const options = { width: w, height: h, quality, format, keepExif };
+
+      const run = async () => {
+        patch(item.key, { working: true });
+        let [err, result] = await to(compressImage(item.remote.id, options, ctrl.signal));
+
+        if (err instanceof HttpError && err.status === 404) {
+          const [uploadErr, info] = await to(uploadImage(item.file, ctrl.signal));
+          if (!uploadErr) {
+            item.remote.id = info.id;
+            [err, result] = await to(compressImage(info.id, options, ctrl.signal));
+          } else {
+            err = uploadErr;
+          }
+        }
+
+        if (ctrl.signal.aborted) return;
+        if (err || !result) return patch(item.key, { working: false, error: err?.message ?? 'Compression failed' });
+        const previous = itemsRef.current.find(i => i.key === item.key)?.output;
+        if (previous) URL.revokeObjectURL(previous.url);
+        patch(item.key, { working: false, error: null, output: { ...result, url: URL.createObjectURL(result.blob) } });
+      };
+
+      const timer = setTimeout(run, DEBOUNCE_MS);
+      return () => {
+        clearTimeout(timer);
+        ctrl.abort();
+      };
+    },
+    [patch],
+  );
+
+  // Every image is compressed in the background, not just the visible one, so
+  // "download all" is ready. A job restarts only when its inputs change.
+  useEffect(() => {
+    const running = jobs.current;
+    const live = new Set<string>();
+    for (const item of items) {
+      live.add(item.key);
+      const d = dimsOf(item);
+      const { quality, format, keepExif } = item.settings;
+      const sig = [d.w, d.h, quality, format, keepExif].join('|');
+      const job = running.get(item.key);
+      if (job?.sig === sig) continue;
+      job?.cancel();
+      running.set(item.key, { sig, cancel: schedule(item, d) });
+    }
+    for (const [key, job] of running) {
+      if (live.has(key)) continue;
+      job.cancel();
+      running.delete(key);
+    }
+  }, [items, schedule]);
+
+  const select = useCallback((key: string) => setActiveKey(key), []);
+
+  const remove = useCallback((key: string) => {
+    const list = itemsRef.current;
+    const index = list.findIndex(i => i.key === key);
+    const item = list[index];
+    if (!item) return;
+    URL.revokeObjectURL(item.url);
+    if (item.output) URL.revokeObjectURL(item.output.url);
+    releaseImage(item.remote.id);
+    setItems(prev => prev.filter(i => i.key !== key));
+    if (activeKeyRef.current === key) setActiveKey((list[index + 1] ?? list[index - 1])?.key ?? null);
+    setError(null);
+  }, []);
+
+  const clear = useCallback(() => {
+    for (const item of itemsRef.current) {
+      URL.revokeObjectURL(item.url);
+      if (item.output) URL.revokeObjectURL(item.output.url);
+      releaseImage(item.remote.id);
+    }
+    setItems([]);
+    setActiveKey(null);
+    setError(null);
+    setNotice(null);
+  }, []);
+
+  const setScale = useCallback(
+    (value: number) => activeKey && patchSettings(activeKey, { scale: clamp(Math.round(value), SCALE_MIN, SCALE_MAX), custom: null }),
+    [activeKey, patchSettings],
+  );
 
   const applyDimension = useCallback(
     (key: keyof Dimensions, raw: number, locked: boolean) => {
-      if (!source || !dims) return;
+      if (!active || !dims) return;
       const v = Math.min(MAX_DIMENSION, Math.round(raw));
       if (!(v >= 1)) return;
-      const { width: ow, height: oh } = source.info;
+      const { width: ow, height: oh } = active.info;
       let { w: nw, h: nh } = dims;
       if (key === 'w') {
         nw = v;
@@ -145,10 +255,9 @@ export const useSqueeze = () => {
         nh = v;
         if (locked) nw = clamp(Math.round((v * ow) / oh), 1, MAX_DIMENSION);
       }
-      setCustom({ w: nw, h: nh });
-      setScaleValue(clamp(Math.round((nw / ow) * 100), SCALE_MIN, SCALE_MAX));
+      patchSettings(active.key, { custom: { w: nw, h: nh }, scale: clamp(Math.round((nw / ow) * 100), SCALE_MIN, SCALE_MAX) });
     },
-    [source, dims],
+    [active, dims, patchSettings],
   );
 
   const setDimension = useCallback((key: keyof Dimensions, raw: number) => applyDimension(key, raw, lock), [applyDimension, lock]);
@@ -157,38 +266,65 @@ export const useSqueeze = () => {
     const next = !lock;
     setLock(next);
     // Re-locking snaps height back to the original ratio for the current width.
-    if (next && custom) applyDimension('w', custom.w, true);
-  }, [lock, custom, applyDimension]);
+    if (next && active?.settings.custom) applyDimension('w', active.settings.custom.w, true);
+  }, [lock, active, applyDimension]);
 
-  const download = useCallback(() => {
-    if (!output || !source) return;
-    const a = document.createElement('a');
-    a.href = output.url;
-    a.download = `${source.file.name.replace(/\.[^.]+$/, '')}-squeezed.${extensionFor(format)}`;
-    a.click();
-  }, [output, source, format]);
+  const setQuality = useCallback(
+    (v: number) => activeKey && patchSettings(activeKey, { quality: clamp(Math.round(v), QUALITY_MIN, QUALITY_MAX) }),
+    [activeKey, patchSettings],
+  );
+  const setFormat = useCallback((format: OutputFormat) => activeKey && patchSettings(activeKey, { format }), [activeKey, patchSettings]);
+  const setKeepExif = useCallback((keepExif: boolean) => activeKey && patchSettings(activeKey, { keepExif }), [activeKey, patchSettings]);
+
+  /** Copies the visible image's quality, format and scale to every image. */
+  const applyToAll = useCallback(() => {
+    if (!active) return;
+    const { scale, quality, format, keepExif } = active.settings;
+    setItems(prev => prev.map(i => ({ ...i, settings: { scale, quality, format, keepExif, custom: null } })));
+  }, [active]);
+
+  const download = useCallback(() => active && save(active), [active]);
+
+  const downloadAll = useCallback(async () => {
+    for (const item of itemsRef.current) {
+      save(item);
+      // Browsers drop downloads fired in the same tick.
+      await pause(150);
+    }
+  }, []);
+
+  const settings = active?.settings;
 
   return {
-    source,
-    output,
+    items,
+    activeKey,
+    source: active,
+    output: active?.output ?? null,
     dims,
-    scale,
-    isCustomSize: custom !== null,
+    scale: settings?.scale ?? DEFAULT_SETTINGS.scale,
+    isCustomSize: settings?.custom != null,
     lock,
-    quality,
-    format,
-    keepExif,
-    uploading,
-    working,
-    error,
+    quality: settings?.quality ?? DEFAULT_SETTINGS.quality,
+    format: settings?.format ?? 'jpeg',
+    keepExif: settings?.keepExif ?? DEFAULT_SETTINGS.keepExif,
+    uploading: pending > 0,
+    working: items.some(i => i.working),
+    readyCount: items.filter(i => i.output && !i.working).length,
+    error: error ?? active?.error ?? null,
+    notice,
     load,
+    select,
+    remove,
+    clear,
     setScale,
     setDimension,
     toggleLock,
-    setQuality: (v: number) => setQuality(clamp(Math.round(v), QUALITY_MIN, QUALITY_MAX)),
+    setQuality,
     setFormat,
     setKeepExif,
+    applyToAll,
     download,
+    downloadAll,
   };
 };
 
