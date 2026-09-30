@@ -65,11 +65,31 @@ const save = (item: Item) => {
 
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
-const DEFAULT_SETTINGS: Omit<Settings, 'format'> = { scale: 60, custom: null, quality: 70, keepExif: false };
+/** Settings used before any image exists, and the starting point for new images. */
+type Defaults = Omit<Settings, 'custom' | 'format'> & { format: OutputFormat | null };
+
+const DEFAULTS: Defaults = { scale: 60, quality: 70, format: null, keepExif: false };
+const STORAGE_KEY = 'squeeze:settings';
+const FORMATS: readonly OutputFormat[] = ['jpeg', 'webp', 'png'];
+
+const readDefaults = (): Defaults => {
+  try {
+    const raw: Partial<Defaults> = JSON.parse(localStorage.getItem(STORAGE_KEY) ?? '{}');
+    return {
+      scale: typeof raw.scale === 'number' ? clamp(Math.round(raw.scale), SCALE_MIN, SCALE_MAX) : DEFAULTS.scale,
+      quality: typeof raw.quality === 'number' ? clamp(Math.round(raw.quality), QUALITY_MIN, QUALITY_MAX) : DEFAULTS.quality,
+      format: FORMATS.find(f => f === raw.format) ?? null,
+      keepExif: typeof raw.keepExif === 'boolean' ? raw.keepExif : DEFAULTS.keepExif,
+    };
+  } catch {
+    return DEFAULTS;
+  }
+};
 
 export const useSqueeze = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
+  const [defaults, setDefaults] = useState(readDefaults);
   const [lock, setLock] = useState(true);
   const [pending, setPending] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -93,6 +113,17 @@ export const useSqueeze = () => {
     (key: string, change: Partial<Settings>) => patch(key, i => ({ settings: { ...i.settings, ...change } })),
     [patch],
   );
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(defaults));
+    } catch {
+      // Storage unavailable (private mode, quota): settings just won't persist.
+    }
+  }, [defaults]);
+
+  const defaultsRef = useRef(defaults);
+  defaultsRef.current = defaults;
 
   // Free object URLs, server copies and pending requests on unmount.
   useEffect(() => {
@@ -132,14 +163,16 @@ export const useSqueeze = () => {
         failure = err.message;
         continue;
       }
-      const inherited = itemsRef.current.find(i => i.key === activeKeyRef.current)?.settings ?? DEFAULT_SETTINGS;
+      const current = itemsRef.current.find(i => i.key === activeKeyRef.current)?.settings;
+      const base = defaultsRef.current;
+      const inherited = current ?? { scale: base.scale, quality: base.quality, keepExif: base.keepExif, format: base.format };
       const item: Item = {
         key: String(++nextKey.current),
         file,
         url: URL.createObjectURL(file),
         info,
         remote: { id: info.id },
-        settings: { ...inherited, custom: null, format: formatFromMime(file.type) },
+        settings: { ...inherited, custom: null, format: inherited.format ?? formatFromMime(file.type) },
         output: null,
         working: false,
         error: null,
@@ -236,9 +269,21 @@ export const useSqueeze = () => {
     setNotice(null);
   }, []);
 
-  const setScale = useCallback(
-    (value: number) => activeKey && patchSettings(activeKey, { scale: clamp(Math.round(value), SCALE_MIN, SCALE_MAX), custom: null }),
+  /** Updates the visible image, and remembers the value for new images and the next visit. */
+  const change = useCallback(
+    (next: Partial<Omit<Settings, 'custom'>>, item: Partial<Settings> = next) => {
+      setDefaults(d => ({ ...d, ...next }));
+      if (activeKey) patchSettings(activeKey, item);
+    },
     [activeKey, patchSettings],
+  );
+
+  const setScale = useCallback(
+    (value: number) => {
+      const scale = clamp(Math.round(value), SCALE_MIN, SCALE_MAX);
+      change({ scale }, { scale, custom: null });
+    },
+    [change],
   );
 
   const applyDimension = useCallback(
@@ -255,9 +300,9 @@ export const useSqueeze = () => {
         nh = v;
         if (locked) nw = clamp(Math.round((v * ow) / oh), 1, MAX_DIMENSION);
       }
-      patchSettings(active.key, { custom: { w: nw, h: nh }, scale: clamp(Math.round((nw / ow) * 100), SCALE_MIN, SCALE_MAX) });
+      change({ scale: clamp(Math.round((nw / ow) * 100), SCALE_MIN, SCALE_MAX) }, { custom: { w: nw, h: nh }, scale: clamp(Math.round((nw / ow) * 100), SCALE_MIN, SCALE_MAX) });
     },
-    [active, dims, patchSettings],
+    [active, dims, change],
   );
 
   const setDimension = useCallback((key: keyof Dimensions, raw: number) => applyDimension(key, raw, lock), [applyDimension, lock]);
@@ -269,12 +314,9 @@ export const useSqueeze = () => {
     if (next && active?.settings.custom) applyDimension('w', active.settings.custom.w, true);
   }, [lock, active, applyDimension]);
 
-  const setQuality = useCallback(
-    (v: number) => activeKey && patchSettings(activeKey, { quality: clamp(Math.round(v), QUALITY_MIN, QUALITY_MAX) }),
-    [activeKey, patchSettings],
-  );
-  const setFormat = useCallback((format: OutputFormat) => activeKey && patchSettings(activeKey, { format }), [activeKey, patchSettings]);
-  const setKeepExif = useCallback((keepExif: boolean) => activeKey && patchSettings(activeKey, { keepExif }), [activeKey, patchSettings]);
+  const setQuality = useCallback((v: number) => change({ quality: clamp(Math.round(v), QUALITY_MIN, QUALITY_MAX) }), [change]);
+  const setFormat = useCallback((format: OutputFormat) => change({ format }), [change]);
+  const setKeepExif = useCallback((keepExif: boolean) => change({ keepExif }), [change]);
 
   /** Copies the visible image's quality, format and scale to every image. */
   const applyToAll = useCallback(() => {
@@ -301,12 +343,12 @@ export const useSqueeze = () => {
     source: active,
     output: active?.output ?? null,
     dims,
-    scale: settings?.scale ?? DEFAULT_SETTINGS.scale,
+    scale: settings?.scale ?? defaults.scale,
     isCustomSize: settings?.custom != null,
     lock,
-    quality: settings?.quality ?? DEFAULT_SETTINGS.quality,
-    format: settings?.format ?? 'jpeg',
-    keepExif: settings?.keepExif ?? DEFAULT_SETTINGS.keepExif,
+    quality: settings?.quality ?? defaults.quality,
+    format: settings?.format ?? defaults.format ?? 'jpeg',
+    keepExif: settings?.keepExif ?? defaults.keepExif,
     uploading: pending > 0,
     working: items.some(i => i.working),
     readyCount: items.filter(i => i.output && !i.working).length,

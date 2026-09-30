@@ -57,9 +57,16 @@ export const App = () => {
               afterLabel={output ? formatBytes(output.blob.size) : '…'}
               fileName={squeeze.items.length > 1 ? `${source.file.name} (${squeeze.items.indexOf(source) + 1}/${squeeze.items.length})` : source.file.name}
               onFiles={onFiles}
+              onRemove={() => squeeze.remove(source.key)}
             />
           ) : (
-            <DropZone onPick={pick} onFiles={onFiles} uploading={squeeze.uploading} />
+            <div className="compare">
+              <DropZone onPick={pick} onFiles={onFiles} uploading={squeeze.uploading} />
+              {/* Reserve the filename caption so the layout doesn't shift once an image is chosen. */}
+              <div className="caption" aria-hidden>
+                &nbsp;
+              </div>
+            </div>
           )}
           <Queue squeeze={squeeze} onPick={pick} onFiles={onFiles} />
           <div className="status" role="status" aria-live="polite">

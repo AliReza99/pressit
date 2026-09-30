@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { clamp } from '../lib/format';
 import { useDragOver } from './DropZone';
 
@@ -11,18 +11,77 @@ type CompareProps = {
   afterLabel: string;
   fileName: string;
   onFiles: (files: File[]) => void;
+  onRemove: () => void;
 };
 
-export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, afterLabel, fileName, onFiles }: CompareProps) => {
+const MAX_ZOOM = 16;
+const SPLIT_GRAB_PX = 24;
+
+type View = { zoom: number; x: number; y: number };
+const FIT: View = { zoom: 1, x: 0, y: 0 };
+
+// Keep the zoomed image covering the frame: offsets range from (1 - zoom) * size up to 0.
+const clampView = (v: View, w: number, h: number): View => ({
+  zoom: v.zoom,
+  x: clamp(v.x, w * (1 - v.zoom), 0),
+  y: clamp(v.y, h * (1 - v.zoom), 0),
+});
+
+export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, afterLabel, fileName, onFiles, onRemove }: CompareProps) => {
   const [split, setSplit] = useState(50);
-  const dragging = useRef(false);
+  const [view, setView] = useState<View>(FIT);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ mode: 'split' | 'pan'; x: number; y: number } | null>(null);
   const { over, handlers } = useDragOver(onFiles);
   // The stage is a size container filling the available height; cap width so the frame never exceeds it.
   const maxW = `min(100%, calc(100cqh * ${width / height}))`;
 
-  const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
+  useEffect(() => setView(FIT), [originalUrl]);
+
+  // Wheel zooms about the cursor. Needs a non-passive listener to stop the page scrolling.
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const r = el.getBoundingClientRect();
+      const cx = e.clientX - r.left;
+      const cy = e.clientY - r.top;
+      setView(v => {
+        const zoom = clamp(v.zoom * Math.exp(-e.deltaY * 0.002), 1, MAX_ZOOM);
+        const k = zoom / v.zoom;
+        return clampView({ zoom, x: cx - (cx - v.x) * k, y: cy - (cy - v.y) * k }, r.width, r.height);
+      });
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, []);
+
+  const splitFromPointer = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     setSplit(clamp(((e.clientX - r.left) / r.width) * 100, 0, 100));
+  };
+
+  const onPointerDown = (e: PointerEvent<HTMLDivElement>) => {
+    const r = e.currentTarget.getBoundingClientRect();
+    const nearSplit = Math.abs(e.clientX - r.left - (split / 100) * r.width) <= SPLIT_GRAB_PX;
+    // Zoomed in, dragging pans; grab the divider to move the slider instead.
+    const mode = view.zoom === 1 || nearSplit ? 'split' : 'pan';
+    drag.current = { mode, x: e.clientX, y: e.clientY };
+    e.currentTarget.setPointerCapture(e.pointerId);
+    if (mode === 'split') splitFromPointer(e);
+  };
+
+  const onPointerMove = (e: PointerEvent<HTMLDivElement>) => {
+    const d = drag.current;
+    if (!d) return;
+    if (d.mode === 'split') return splitFromPointer(e);
+    const { width: w, height: h } = e.currentTarget.getBoundingClientRect();
+    const dx = e.clientX - d.x;
+    const dy = e.clientY - d.y;
+    d.x = e.clientX;
+    d.y = e.clientY;
+    setView(v => clampView({ ...v, x: v.x + dx, y: v.y + dy }, w, h));
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
@@ -34,11 +93,18 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
     e.preventDefault();
   };
 
+  const layerStyle = { transform: `translate(${view.x}px, ${view.y}px) scale(${view.zoom})` };
+
   return (
     <div className="compare" {...handlers}>
       <div className="compare-stage" data-over={over}>
+        <button type="button" className="compare-remove" aria-label={`Remove ${fileName}`} onClick={onRemove}>
+          ×
+        </button>
         <div
+          ref={frameRef}
           className="compare-frame"
+          data-zoomed={view.zoom > 1}
           style={{ maxWidth: maxW, aspectRatio: `${width} / ${height}` }}
           role="slider"
           tabIndex={0}
@@ -46,18 +112,21 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
           aria-valuemin={0}
           aria-valuemax={100}
           aria-valuenow={Math.round(split)}
-          onPointerDown={e => {
-            dragging.current = true;
-            e.currentTarget.setPointerCapture(e.pointerId);
-            fromPointer(e);
-          }}
-          onPointerMove={e => dragging.current && fromPointer(e)}
-          onPointerUp={() => (dragging.current = false)}
-          onPointerCancel={() => (dragging.current = false)}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={() => (drag.current = null)}
+          onPointerCancel={() => (drag.current = null)}
+          onDoubleClick={() => setView(FIT)}
           onKeyDown={onKeyDown}
         >
-          <img src={originalUrl} draggable={false} alt="Original" />
-          <img src={outputUrl} draggable={false} alt="Compressed" style={{ clipPath: `inset(0 0 0 ${split}%)` }} />
+          <div className="compare-layer" style={layerStyle}>
+            <img src={originalUrl} draggable={false} alt="Original" />
+          </div>
+          <div className="compare-clip" style={{ clipPath: `inset(0 0 0 ${split}%)` }}>
+            <div className="compare-layer" style={layerStyle}>
+              <img src={outputUrl} draggable={false} alt="Compressed" />
+            </div>
+          </div>
           <div className="compare-divider" style={{ left: `${split}%` }}>
             <div className="compare-knob">◂▸</div>
           </div>
@@ -67,7 +136,7 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
       </div>
       <div className="caption">
         <span>{fileName}</span>
-        <span>drag or shift+←/→ to compare · ←/→ switch image · zoom is fit-to-view</span>
+        <span>drag or shift+←/→ to compare · ←/→ switch image · wheel zoom · dbl-click reset</span>
       </div>
     </div>
   );
