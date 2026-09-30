@@ -88,14 +88,6 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
       <div id="compression-settings" hidden={collapsed}>
         <Section title="SIZE" meta={`${scale}%`}>
           <RulerSlider label="Scale" value={scale} min={SCALE_MIN} max={SCALE_MAX} onChange={squeeze.setScale} valueText={`${scale}%`} />
-          <div className="dims">
-            <DimensionInput label="WIDTH PX" value={dims?.w ?? null} onCommit={v => squeeze.setDimension('w', v)} />
-            <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={squeeze.toggleLock}>
-              {lock ? 'LOCK' : 'FREE'}
-            </button>
-            <DimensionInput label="HEIGHT PX" value={dims?.h ?? null} onCommit={v => squeeze.setDimension('h', v)} />
-          </div>
-          <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked, image may stretch'}</div>
         </Section>
 
         <Section title="QUALITY" meta={lossless ? 'LOSSLESS' : `${quality}%`}>
@@ -113,6 +105,17 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
             <span>{lossless ? 'PNG ignores quality' : qualityNote(quality)}</span>
             <span>sharpest</span>
           </div>
+        </Section>
+
+        <Section title="DIMENSIONS" meta={dims ? `${dims.w}×${dims.h}` : undefined}>
+          <div className="dims">
+            <DimensionInput label="WIDTH PX" value={dims?.w ?? null} onCommit={v => squeeze.setDimension('w', v)} />
+            <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={squeeze.toggleLock}>
+              {lock ? 'LOCK' : 'FREE'}
+            </button>
+            <DimensionInput label="HEIGHT PX" value={dims?.h ?? null} onCommit={v => squeeze.setDimension('h', v)} />
+          </div>
+          <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked, image may stretch'}</div>
         </Section>
 
         <Section title="EXIF" meta={exifStatus}>
