@@ -379,7 +379,15 @@ button {
 
 .queue-item[data-active='true'] .queue-pick {
   border-color: var(--accent);
-  border-width: 3px;
+}
+
+/* Thicker active border drawn inside, so switching never shifts layout. */
+.queue-item[data-active='true'] .queue-pick::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--accent);
+  pointer-events: none;
 }
 
 .queue-pick img {
@@ -439,11 +447,6 @@ button {
   background: var(--paper);
   font: 700 16px/1 var(--mono);
   cursor: pointer;
-}
-
-.queue-item[data-active='true'] .queue-remove {
-  top: 3px;
-  right: 3px;
 }
 
 .queue-remove:hover {

@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import type { Item, Squeeze } from '../hooks/useSqueeze';
 import { useDragOver } from './DropZone';
 
@@ -11,6 +12,9 @@ const savedLabel = ({ info, output, working, error }: Item) => {
 export const Queue = ({ squeeze, onPick, onFiles }: { squeeze: Squeeze; onPick: () => void; onFiles: (files: File[]) => void }) => {
   const { items, activeKey } = squeeze;
   const { over, handlers } = useDragOver(onFiles);
+  useEffect(() => {
+    document.querySelector('.queue-item[data-active="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }, [activeKey]);
   const busy = items.filter(i => i.working || (!i.output && !i.error)).length;
 
   return (
@@ -40,7 +44,7 @@ export const Queue = ({ squeeze, onPick, onFiles }: { squeeze: Squeeze; onPick: 
         <li className="queue-item">
           <button type="button" className="queue-add" data-over={over} aria-label="Add images" onClick={onPick} {...handlers}>
             <span aria-hidden>+</span>
-            <span>ADD</span>
+            <span>ADD IMAGES</span>
           </button>
         </li>
       </ul>

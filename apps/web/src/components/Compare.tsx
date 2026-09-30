@@ -26,9 +26,10 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
-    const step = e.shiftKey ? 10 : 2;
-    if (e.key === 'ArrowLeft') setSplit(s => clamp(s - step, 0, 100));
-    else if (e.key === 'ArrowRight') setSplit(s => clamp(s + step, 0, 100));
+    // Plain arrows switch queue images (see useQueueKeys); Shift+arrow moves the slider.
+    if (!e.shiftKey) return;
+    if (e.key === 'ArrowLeft') setSplit(s => clamp(s - 5, 0, 100));
+    else if (e.key === 'ArrowRight') setSplit(s => clamp(s + 5, 0, 100));
     else return;
     e.preventDefault();
   };
@@ -66,7 +67,7 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
       </div>
       <div className="caption">
         <span>{fileName}</span>
-        <span>drag the slider to compare · zoom is fit-to-view</span>
+        <span>drag or shift+←/→ to compare · ←/→ switch image · zoom is fit-to-view</span>
       </div>
     </div>
   );

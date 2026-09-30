@@ -1,9 +1,10 @@
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { Compare } from './components/Compare';
 import { DropZone } from './components/DropZone';
 import { Queue } from './components/Queue';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useGlobalImageInput } from './hooks/useGlobalImageInput';
+import { useQueueKeys } from './hooks/useQueueKeys';
 import { useSqueeze } from './hooks/useSqueeze';
 import { formatBytes } from './lib/format';
 
@@ -15,6 +16,8 @@ export const App = () => {
   const pick = useCallback(() => input.current?.click(), []);
   const onFiles = useCallback((files: File[]) => void load(files), [load]);
   useGlobalImageInput(onFiles);
+  const keys = useMemo(() => squeeze.items.map(i => i.key), [squeeze.items]);
+  useQueueKeys(keys, squeeze.activeKey, squeeze.select);
 
   return (
     <div className="app">
