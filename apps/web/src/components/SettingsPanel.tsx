@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { extensionFor, type OutputFormat } from '@squeeze/shared';
 import { QUALITY_MAX, QUALITY_MIN, SCALE_MAX, SCALE_MIN, type Squeeze } from '../hooks/useSqueeze';
 import { formatBytes } from '../lib/format';
@@ -27,10 +27,21 @@ const Section = ({ title, meta, children }: { title: string; meta?: ReactNode; c
   </section>
 );
 
+const COLLAPSED_KEY = 'squeeze:settings-collapsed';
+
+const readCollapsed = () => {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === 'true';
+  } catch {
+    return false;
+  }
+};
+
 const qualityNote = (q: number) => (q > 85 ? 'high' : q > 50 ? 'balanced' : 'aggressive');
 
 export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
   const { source, output, dims, scale, isCustomSize, lock, quality, format, keepExif } = squeeze;
+  const [collapsed, setCollapsed] = useState(readCollapsed);
   const info = source?.info;
   const lossless = format === 'png';
 
@@ -47,47 +58,75 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
         ? 'metadata copied to output (orientation applied)'
         : 'source has no EXIF to keep';
 
+  const formatLabel = FORMATS.find(f => f.value === format)?.label ?? format.toUpperCase();
+  const sizeSummary = isCustomSize && dims ? `${dims.w}×${dims.h}` : `${scale}%`;
+  const summary = [sizeSummary, lossless ? 'LOSSLESS' : `Q${quality}`, keepExif ? 'EXIF' : 'NO EXIF', formatLabel].join(' · ');
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(COLLAPSED_KEY, String(collapsed));
+    } catch {
+      // Storage unavailable: collapsed state just won't persist.
+    }
+  }, [collapsed]);
+
   return (
     <aside className="panel">
-      <Section title="SIZE" meta={info && dims ? `${info.width}×${info.height} → ${dims.w}×${dims.h}` : '—'}>
-        <Segmented label="Scale presets" options={PRESETS} value={isCustomSize ? null : scale} onChange={squeeze.setScale} />
-        <RulerSlider label="Scale" value={scale} min={SCALE_MIN} max={SCALE_MAX} onChange={squeeze.setScale} valueText={`${scale}%`} />
-        <div className="note">{scale}% of original dimensions</div>
-        <div className="dims">
-          <DimensionInput label="WIDTH PX" value={dims?.w ?? null} onCommit={v => squeeze.setDimension('w', v)} />
-          <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={squeeze.toggleLock}>
-            {lock ? 'LOCK' : 'FREE'}
-          </button>
-          <DimensionInput label="HEIGHT PX" value={dims?.h ?? null} onCommit={v => squeeze.setDimension('h', v)} />
-        </div>
-        <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked, image may stretch'}</div>
-      </Section>
+      <button
+        type="button"
+        className="panel-toggle"
+        aria-expanded={!collapsed}
+        aria-controls="compression-settings"
+        onClick={() => setCollapsed(c => !c)}
+      >
+        <span>SETTINGS</span>
+        <span className="panel-toggle-meta">
+          {collapsed && <span className="panel-toggle-summary">{summary}</span>}
+          <span aria-hidden>{collapsed ? '+' : '−'}</span>
+        </span>
+      </button>
 
-      <Section title="QUALITY" meta={lossless ? 'LOSSLESS' : `${quality}/100`}>
-        <RulerSlider
-          label="Quality"
-          value={quality}
-          min={QUALITY_MIN}
-          max={QUALITY_MAX}
-          onChange={squeeze.setQuality}
-          disabled={lossless}
-          valueText={lossless ? 'lossless' : `${quality} of 100`}
-        />
-        <div className="note note-spread">
-          <span>smallest</span>
-          <span>{lossless ? 'PNG ignores quality' : qualityNote(quality)}</span>
-          <span>sharpest</span>
-        </div>
-      </Section>
+      <div id="compression-settings" hidden={collapsed}>
+        <Section title="SIZE" meta={info && dims ? `${info.width}×${info.height} → ${dims.w}×${dims.h}` : '—'}>
+          <Segmented label="Scale presets" options={PRESETS} value={isCustomSize ? null : scale} onChange={squeeze.setScale} />
+          <RulerSlider label="Scale" value={scale} min={SCALE_MIN} max={SCALE_MAX} onChange={squeeze.setScale} valueText={`${scale}%`} />
+          <div className="note">{scale}% of original dimensions</div>
+          <div className="dims">
+            <DimensionInput label="WIDTH PX" value={dims?.w ?? null} onCommit={v => squeeze.setDimension('w', v)} />
+            <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={squeeze.toggleLock}>
+              {lock ? 'LOCK' : 'FREE'}
+            </button>
+            <DimensionInput label="HEIGHT PX" value={dims?.h ?? null} onCommit={v => squeeze.setDimension('h', v)} />
+          </div>
+          <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked, image may stretch'}</div>
+        </Section>
 
-      <Section title="FORMAT">
-        <Segmented label="Output format" options={FORMATS} value={format} onChange={squeeze.setFormat} />
-      </Section>
+        <Section title="QUALITY" meta={lossless ? 'LOSSLESS' : `${quality}/100`}>
+          <RulerSlider
+            label="Quality"
+            value={quality}
+            min={QUALITY_MIN}
+            max={QUALITY_MAX}
+            onChange={squeeze.setQuality}
+            disabled={lossless}
+            valueText={lossless ? 'lossless' : `${quality} of 100`}
+          />
+          <div className="note note-spread">
+            <span>smallest</span>
+            <span>{lossless ? 'PNG ignores quality' : qualityNote(quality)}</span>
+            <span>sharpest</span>
+          </div>
+        </Section>
 
-      <Section title="EXIF" meta={exifStatus}>
-        <Segmented label="EXIF metadata" options={EXIF_OPTIONS} value={keepExif} onChange={squeeze.setKeepExif} />
-        <div className="note">{exifNote}</div>
-      </Section>
+        <Section title="EXIF" meta={exifStatus}>
+          <Segmented label="EXIF metadata" options={EXIF_OPTIONS} value={keepExif} onChange={squeeze.setKeepExif} />
+          <div className="note">{exifNote}</div>
+        </Section>
+
+        <Section title="FORMAT">
+          <Segmented label="Output format" options={FORMATS} value={format} onChange={squeeze.setFormat} />
+        </Section>
+      </div>
 
       <section className="panel-section panel-result">
         <div className="bars">
@@ -98,7 +137,9 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
             </span>
             <span>{formatBytes(origSize)}</span>
           </div>
-          <div className="bar bar-before" />
+          <div className="bar bar-before">
+            <div style={{ width: info ? '100%' : '0%' }} />
+          </div>
           <div className="bar-row bar-row-after">
             <span>
               <span className="bar-label">AFTER</span>

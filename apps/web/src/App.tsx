@@ -27,7 +27,7 @@ export const App = () => {
           <h1>
             Squeeze<span>.</span>
           </h1>
-          <span className="tagline">image press / runs on your machine, nothing leaves it</span>
+          <span className="tagline">compress images, less bytes</span>
         </div>
         <button type="button" className="btn-outline" onClick={pick}>
           + ADD IMAGES

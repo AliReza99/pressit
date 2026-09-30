@@ -520,6 +520,42 @@ button {
   overflow-y: auto;
 }
 
+.panel-toggle {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 14px;
+  border: 0;
+  border-bottom: 2px solid var(--ink);
+  background: var(--ink);
+  color: var(--paper);
+  font: 500 12px var(--mono);
+  text-align: left;
+  cursor: pointer;
+}
+
+.panel-toggle:hover {
+  color: var(--accent);
+}
+
+.panel-toggle:focus-visible {
+  outline-offset: -4px;
+}
+
+.panel-toggle-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.panel-toggle-summary {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .panel-section {
   padding: 9px 14px;
   border-bottom: 2px solid var(--ink);
@@ -687,20 +723,20 @@ button {
 
 .bar {
   height: 14px;
-}
-
-.bar-before {
-  background: var(--ink);
-}
-
-.bar-after {
   background: var(--track);
 }
 
-.bar-after div {
+.bar div {
   height: 100%;
-  background: var(--accent);
   transition: width 0.2s;
+}
+
+.bar-before div {
+  background: var(--ink);
+}
+
+.bar-after div {
+  background: var(--accent);
 }
 
 .saved {
