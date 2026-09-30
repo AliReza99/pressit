@@ -170,7 +170,7 @@ export const Compare = ({ originalUrl, outputUrl, width, height, beforeLabel, af
           <span>.{extension}</span>
           {position && <span> ({position})</span>}
         </span>
-        <span>drag or shift+←/→ to compare · ←/→ switch image · wheel zoom · dbl-click reset</span>
+        <span>drag to compare · wheel zoom</span>
       </div>
     </div>
   );

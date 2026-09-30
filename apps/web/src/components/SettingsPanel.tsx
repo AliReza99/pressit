@@ -92,12 +92,18 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
       <section className="panel-section panel-result">
         <div className="bars">
           <div className="bar-row">
-            <span>BEFORE</span>
+            <span>
+              <span className="bar-label">BEFORE</span>
+              {info && <span className="bar-px">{info.width}×{info.height}</span>}
+            </span>
             <span>{formatBytes(origSize)}</span>
           </div>
           <div className="bar bar-before" />
           <div className="bar-row bar-row-after">
-            <span>AFTER</span>
+            <span>
+              <span className="bar-label">AFTER</span>
+              {dims && <span className="bar-px">{output?.width || dims.w}×{output?.height || dims.h}</span>}
+            </span>
             <span>{formatBytes(outSize)}</span>
           </div>
           <div className="bar bar-after">

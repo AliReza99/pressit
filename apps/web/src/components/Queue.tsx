@@ -15,14 +15,11 @@ export const Queue = ({ squeeze, onPick, onFiles }: { squeeze: Squeeze; onPick: 
   useEffect(() => {
     document.querySelector('.queue-item[data-active="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }, [activeKey]);
-  const busy = items.filter(i => i.working || (!i.output && !i.error)).length;
 
   return (
     <section className="queue" aria-label="Queue">
       <div className="queue-head">
-        <span>
-          QUEUE · {items.length === 0 ? 'EMPTY' : `${items.length} ${items.length === 1 ? 'IMAGE' : 'IMAGES'} · ${busy ? `${busy} SQUEEZING` : 'ALL READY'}`}
-        </span>
+        <span>IMAGES</span>
         {items.length > 0 && (
           <button type="button" className="queue-clear" onClick={squeeze.clear}>
             CLEAR ALL

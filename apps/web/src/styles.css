@@ -493,8 +493,8 @@ button {
 
 .queue-remove {
   position: absolute;
-  top: 2px;
-  right: 2px;
+  top: 4px;
+  right: 4px;
   width: 26px;
   height: 26px;
   padding: 0;
@@ -669,6 +669,16 @@ button {
   display: flex;
   justify-content: space-between;
   font: 500 12px var(--mono);
+}
+
+.bar-label {
+  display: inline-block;
+  min-width: 9ch;
+}
+
+.bar-px {
+  opacity: 0.6;
+  font-weight: 400;
 }
 
 .bar-row-after {
