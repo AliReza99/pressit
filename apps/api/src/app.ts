@@ -64,6 +64,10 @@ export const createApp = ({ store = createSourceStore({ maxEntries: 16, ttlMs: 3
         if (!entry) return c.json<ApiError>({ error: 'Image expired, upload it again' }, 404);
 
         const options = c.req.valid('json');
+        const { crop } = options;
+        if (crop && (crop.left + crop.width > entry.info.width || crop.top + crop.height > entry.info.height)) {
+          return c.json<ApiError>({ error: 'Crop is outside the image' }, 400);
+        }
         const [err, result] = await to(compress(entry.buffer, options, entry.info.exifBytes > 0));
         if (err) return c.json<ApiError>({ error: 'Compression failed' }, 422);
 

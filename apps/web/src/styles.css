@@ -229,6 +229,7 @@ button {
   min-height: 240px;
   container-type: size;
   box-sizing: border-box;
+  overflow: hidden;
   padding: 10px;
   display: flex;
   justify-content: center;
@@ -302,11 +303,16 @@ button {
   pointer-events: none;
 }
 
-.compare-remove {
+.compare-tools {
   position: absolute;
   top: 8px;
   right: 8px;
   z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+.compare-tool {
   width: 28px;
   height: 28px;
   padding: 0;
@@ -314,10 +320,266 @@ button {
   background: var(--paper);
   font: 700 16px/1 var(--mono);
   cursor: pointer;
+  display: grid;
+  place-items: center;
 }
 
-.compare-remove:hover {
+.compare-tool:hover:not(:disabled),
+.compare-tool[aria-pressed='true'] {
   background: var(--accent);
+}
+
+.compare-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.compare-pair {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+}
+
+/* Divider between the halves, running the full stage height. */
+.compare-pair::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--paper);
+  pointer-events: none;
+}
+
+.compare-half {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.compare-half:first-child {
+  padding-left: 0;
+}
+
+.compare-half:last-child {
+  padding-right: 0;
+}
+
+.compare-half > .tag {
+  position: static;
+  align-self: flex-start;
+}
+
+/* Its own size container so the frame fits inside it. */
+.compare-half-body {
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.compare-frame[data-layout='side'] {
+  cursor: default;
+}
+
+.compare-frame[data-layout='side'][data-zoomed='true'] {
+  cursor: grab;
+}
+
+/* Crop editor */
+
+.crop-frame {
+  position: relative;
+  width: 100%;
+  touch-action: none;
+  user-select: none;
+}
+
+.crop-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+.crop-box {
+  position: absolute;
+  cursor: move;
+  outline: 2px solid var(--paper);
+  /* Dims everything outside the crop; the stage clips the spread. */
+  box-shadow: 0 0 0 100vmax rgb(22 21 15 / 0.65);
+  /* Rule of thirds. */
+  background:
+    linear-gradient(90deg, transparent calc(33.33% - 0.5px), rgb(235 231 220 / 0.5) calc(33.33% - 0.5px) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px) calc(66.67% - 0.5px), rgb(235 231 220 / 0.5) calc(66.67% - 0.5px) calc(66.67% + 0.5px), transparent calc(66.67% + 0.5px)),
+    linear-gradient(transparent calc(33.33% - 0.5px), rgb(235 231 220 / 0.5) calc(33.33% - 0.5px) calc(33.33% + 0.5px), transparent calc(33.33% + 0.5px) calc(66.67% - 0.5px), rgb(235 231 220 / 0.5) calc(66.67% - 0.5px) calc(66.67% + 0.5px), transparent calc(66.67% + 0.5px));
+}
+
+.crop-handle {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  margin: -7px 0 0 -7px;
+  background: var(--accent);
+  border: 2px solid var(--ink);
+}
+
+.crop-handle[data-handle='n'],
+.crop-handle[data-handle='s'] {
+  left: 50%;
+  cursor: ns-resize;
+}
+
+.crop-handle[data-handle='e'],
+.crop-handle[data-handle='w'] {
+  top: 50%;
+  cursor: ew-resize;
+}
+
+.crop-handle[data-handle*='n'] {
+  top: 0;
+}
+
+.crop-handle[data-handle*='s'] {
+  top: 100%;
+}
+
+.crop-handle[data-handle*='w'] {
+  left: 0;
+}
+
+.crop-handle[data-handle*='e'] {
+  left: 100%;
+}
+
+.crop-handle[data-handle='nw'],
+.crop-handle[data-handle='se'] {
+  cursor: nwse-resize;
+}
+
+.crop-handle[data-handle='ne'],
+.crop-handle[data-handle='sw'] {
+  cursor: nesw-resize;
+}
+
+.crop-box-size {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 50%;
+  transform: translateX(-50%);
+  font: 500 11px var(--mono);
+  padding: 3px 7px;
+  background: var(--paper);
+  color: var(--ink);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* Crop mode: the toolbar sits over the top of the stage, and the extra top
+   padding shrinks the size container so the image fits below it. */
+.compare-stage[data-mode='crop'] {
+  padding-top: 84px;
+}
+
+.crop-bar {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  right: 10px;
+  z-index: 2;
+  padding: 6px;
+  background: var(--paper);
+  border: 2px solid var(--ink);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px 16px;
+  flex-wrap: wrap;
+  font: 500 12px var(--mono);
+}
+
+.crop-aspect,
+.crop-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.crop-aspect .segmented {
+  width: 250px;
+}
+
+.crop-aspect .segmented button {
+  font-size: 12px;
+  padding: 5px 0;
+}
+
+.crop-ratio {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.crop-ratio-field {
+  width: 7ch;
+  font: 500 12px var(--mono);
+  padding: 5px 6px;
+  border: 2px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  border-radius: 0;
+  outline: none;
+  appearance: textfield;
+}
+
+.crop-ratio-field::-webkit-inner-spin-button {
+  appearance: none;
+}
+
+.crop-ratio-field:focus-visible,
+.crop-ratio[data-active='true'] .crop-ratio-field {
+  border-color: var(--accent);
+}
+
+.crop-swap {
+  padding: 4px 10px;
+}
+
+.crop-swap:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.crop-swap:disabled:hover {
+  background: transparent;
+  color: var(--ink);
+}
+
+.crop-size {
+  opacity: 0.6;
+  font-weight: 400;
+}
+
+.crop-actions .btn-outline {
+  padding: 5px 12px;
+}
+
+.crop-apply {
+  background: var(--ink);
+  color: var(--paper);
+}
+
+.crop-apply:hover {
+  background: var(--accent);
+  color: var(--ink);
 }
 
 .tag-before {
@@ -578,6 +840,22 @@ button {
   justify-content: space-between;
 }
 
+.note-action {
+  font: 500 12px var(--mono);
+  white-space: nowrap;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  color: var(--accent);
+}
+
+.note-action:hover {
+  color: var(--ink);
+}
+
 .segmented {
   display: grid;
   border: 2px solid var(--ink);
@@ -781,6 +1059,10 @@ button {
   padding: 9px 14px;
   cursor: pointer;
   letter-spacing: 0.02em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
 }
 
 .download:hover:not(:disabled) {

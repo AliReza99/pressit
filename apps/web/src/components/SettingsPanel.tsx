@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { extensionFor, type OutputFormat } from '@squeeze/shared';
 import { QUALITY_MAX, QUALITY_MIN, SCALE_MAX, SCALE_MIN, type Squeeze } from '../hooks/useSqueeze';
 import { formatBytes } from '../lib/format';
+import { DownloadIcon } from './Compare';
 import { DimensionInput } from './DimensionInput';
 import { RulerSlider } from './RulerSlider';
 import { Segmented } from './Segmented';
@@ -47,10 +48,14 @@ const DimLabel = ({ text, from, to }: { text: string; from?: number; to?: number
   );
 };
 
+/** True when width × height is not the base ratio, so the output would be stretched. */
+const stretches = (dims: { w: number; h: number }, base: { w: number; h: number }) =>
+  Math.abs(Math.log((dims.w / dims.h) * (base.h / base.w))) > 0.01;
+
 const qualityNote = (q: number) => (q > 85 ? 'high' : q > 50 ? 'balanced' : 'aggressive');
 
-export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
-  const { source, output, dims, scale, isCustomSize, lock, quality, format, keepExif } = squeeze;
+export const SettingsPanel = ({ squeeze, onCropToFit }: { squeeze: Squeeze; onCropToFit: () => void }) => {
+  const { source, output, dims, base, crop, scale, isCustomSize, lock, quality, format, keepExif } = squeeze;
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const info = source?.info;
   const lossless = format === 'png';
@@ -121,18 +126,18 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
         <Section title="DIMENSIONS" meta={dims ? `${dims.w}×${dims.h}` : undefined}>
           <div className="dims">
             <label className="dim dim-original">
-              ORIGINAL W
-              <input type="number" disabled value={info?.width ?? ''} />
+              {crop ? 'CROP W' : 'ORIGINAL W'}
+              <input type="number" disabled value={base?.w ?? ''} />
             </label>
             <span className="dims-arrow" aria-hidden>
               ↓
             </span>
             <label className="dim dim-original">
-              ORIGINAL H
-              <input type="number" disabled value={info?.height ?? ''} />
+              {crop ? 'CROP H' : 'ORIGINAL H'}
+              <input type="number" disabled value={base?.h ?? ''} />
             </label>
             <DimensionInput
-              label={<DimLabel text="WIDTH PX" from={info?.width} to={dims?.w} />}
+              label={<DimLabel text="WIDTH PX" from={base?.w} to={dims?.w} />}
               value={dims?.w ?? null}
               onCommit={v => squeeze.setDimension('w', v)}
             />
@@ -140,12 +145,21 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
               {lock ? 'LOCK' : 'FREE'}
             </button>
             <DimensionInput
-              label={<DimLabel text="HEIGHT PX" from={info?.height} to={dims?.h} />}
+              label={<DimLabel text="HEIGHT PX" from={base?.h} to={dims?.h} />}
               value={dims?.h ?? null}
               onCommit={v => squeeze.setDimension('h', v)}
             />
           </div>
-          <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked, image may stretch'}</div>
+          {!lock && dims && base && stretches(dims, base) ? (
+            <div className="note note-spread">
+              <span>ratio differs, image will stretch</span>
+              <button type="button" className="note-action" onClick={onCropToFit}>
+                CROP TO FIT
+              </button>
+            </div>
+          ) : (
+            <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked'}</div>
+          )}
         </Section>
 
         <Section title="EXIF" meta={exifStatus}>
@@ -186,12 +200,12 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
           <span className="saved-value">{saved < 0 ? `+${-saved}` : saved}%</span>
         </div>
         <button type="button" className="download" disabled={!output} onClick={squeeze.download}>
-          DOWNLOAD {extensionFor(format).toUpperCase()} ↓
+          DOWNLOAD {extensionFor(format).toUpperCase()} <DownloadIcon />
         </button>
         {squeeze.items.length > 1 && (
           <div className="batch">
             <button type="button" className="download download-alt" disabled={squeeze.readyCount === 0} onClick={() => void squeeze.downloadAll()}>
-              DOWNLOAD ALL ({squeeze.readyCount}/{squeeze.items.length}) ↓
+              DOWNLOAD ALL ({squeeze.readyCount}/{squeeze.items.length}) <DownloadIcon />
             </button>
             <button type="button" className="btn-outline" onClick={squeeze.applyToAll}>
               APPLY THESE SETTINGS TO ALL

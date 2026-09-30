@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { to } from 'await-to-js';
-import { extensionFor, MAX_DIMENSION, MAX_UPLOAD_BYTES, type OutputFormat, type SourceInfo } from '@squeeze/shared';
+import { extensionFor, MAX_DIMENSION, MAX_UPLOAD_BYTES, type Crop, type OutputFormat, type SourceInfo } from '@squeeze/shared';
 import { compressImage, HttpError, releaseImage, uploadImage, type CompressedImage } from '../lib/api';
 import { clamp, formatFromMime } from '../lib/format';
 
@@ -13,6 +13,8 @@ const DEBOUNCE_MS = 90;
 
 export type Output = CompressedImage & {
   url: string;
+  /** Crop the output was made with, so a stale output is not framed as the new crop. */
+  crop: Crop | null;
 };
 
 export type Dimensions = {
@@ -27,6 +29,8 @@ export type Settings = {
   quality: number;
   format: OutputFormat;
   keepExif: boolean;
+  /** Region of the source to keep, null for the whole image. Never shared between images. */
+  crop: Crop | null;
 };
 
 export type Item = {
@@ -49,11 +53,19 @@ export type Item = {
 
 const isImage = (file: File) => file.type.startsWith('image/') || file.type === '';
 
-const dimsOf = ({ info, settings }: Item): Dimensions =>
-  settings.custom ?? {
-    w: Math.max(1, Math.round((info.width * settings.scale) / 100)),
-    h: Math.max(1, Math.round((info.height * settings.scale) / 100)),
-  };
+/** Size the output is scaled from: the crop, or the whole source. */
+export const baseOf = ({ info, settings: { crop } }: Item): Dimensions =>
+  crop ? { w: crop.width, h: crop.height } : { w: info.width, h: info.height };
+
+const dimsOf = (item: Item): Dimensions => {
+  const base = baseOf(item);
+  return (
+    item.settings.custom ?? {
+      w: Math.max(1, Math.round((base.w * item.settings.scale) / 100)),
+      h: Math.max(1, Math.round((base.h * item.settings.scale) / 100)),
+    }
+  );
+};
 
 const defaultName = (file: File) => `${file.name.replace(/\.[^.]+$/, '')}-squeezed`;
 
@@ -70,7 +82,7 @@ const save = (item: Item) => {
 const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 
 /** Settings used before any image exists, and the starting point for new images. */
-type Defaults = Omit<Settings, 'custom' | 'format'> & { format: OutputFormat | null };
+type Defaults = Omit<Settings, 'custom' | 'crop' | 'format'> & { format: OutputFormat | null };
 
 const DEFAULTS: Defaults = { scale: 60, quality: 70, format: null, keepExif: false };
 const STORAGE_KEY = 'squeeze:settings';
@@ -177,7 +189,7 @@ export const useSqueeze = () => {
         url: URL.createObjectURL(file),
         info,
         remote: { id: info.id },
-        settings: { ...inherited, custom: null, format: inherited.format ?? formatFromMime(file.type) },
+        settings: { ...inherited, custom: null, crop: null, format: inherited.format ?? formatFromMime(file.type) },
         output: null,
         working: false,
         error: null,
@@ -192,8 +204,8 @@ export const useSqueeze = () => {
   const schedule = useCallback(
     (item: Item, { w, h }: Dimensions) => {
       const ctrl = new AbortController();
-      const { quality, format, keepExif } = item.settings;
-      const options = { width: w, height: h, quality, format, keepExif };
+      const { quality, format, keepExif, crop } = item.settings;
+      const options = { width: w, height: h, quality, format, keepExif, ...(crop && { crop }) };
 
       const run = async () => {
         patch(item.key, { working: true });
@@ -213,7 +225,7 @@ export const useSqueeze = () => {
         if (err || !result) return patch(item.key, { working: false, error: err?.message ?? 'Compression failed' });
         const previous = itemsRef.current.find(i => i.key === item.key)?.output;
         if (previous) URL.revokeObjectURL(previous.url);
-        patch(item.key, { working: false, error: null, output: { ...result, url: URL.createObjectURL(result.blob) } });
+        patch(item.key, { working: false, error: null, output: { ...result, url: URL.createObjectURL(result.blob), crop } });
       };
 
       const timer = setTimeout(run, DEBOUNCE_MS);
@@ -233,8 +245,8 @@ export const useSqueeze = () => {
     for (const item of items) {
       live.add(item.key);
       const d = dimsOf(item);
-      const { quality, format, keepExif } = item.settings;
-      const sig = [d.w, d.h, quality, format, keepExif].join('|');
+      const { quality, format, keepExif, crop } = item.settings;
+      const sig = [d.w, d.h, quality, format, keepExif, crop && [crop.left, crop.top, crop.width, crop.height]].join('|');
       const job = running.get(item.key);
       if (job?.sig === sig) continue;
       job?.cancel();
@@ -286,7 +298,7 @@ export const useSqueeze = () => {
 
   /** Updates the visible image, and remembers the value for new images and the next visit. */
   const change = useCallback(
-    (next: Partial<Omit<Settings, 'custom'>>, item: Partial<Settings> = next) => {
+    (next: Partial<Omit<Settings, 'custom' | 'crop'>>, item: Partial<Settings> = next) => {
       setDefaults(d => ({ ...d, ...next }));
       if (activeKey) patchSettings(activeKey, item);
     },
@@ -306,7 +318,7 @@ export const useSqueeze = () => {
       if (!active || !dims) return;
       const v = Math.min(MAX_DIMENSION, Math.round(raw));
       if (!(v >= 1)) return;
-      const { width: ow, height: oh } = active.info;
+      const { w: ow, h: oh } = baseOf(active);
       let { w: nw, h: nh } = dims;
       if (key === 'w') {
         nw = v;
@@ -329,15 +341,28 @@ export const useSqueeze = () => {
     if (next && active?.settings.custom) applyDimension('w', active.settings.custom.w, true);
   }, [lock, active, applyDimension]);
 
+  /** Crops the visible image. A custom size keeps its width, and with the lock on its height follows the new ratio. */
+  const setCrop = useCallback(
+    (crop: Crop | null) => {
+      if (!active) return;
+      const base = crop ? { w: crop.width, h: crop.height } : { w: active.info.width, h: active.info.height };
+      const { custom } = active.settings;
+      const next = custom && lock ? { w: custom.w, h: clamp(Math.round((custom.w * base.h) / base.w), 1, MAX_DIMENSION) } : custom;
+      const scale = next ? clamp(Math.round((next.w / base.w) * 100), SCALE_MIN, SCALE_MAX) : active.settings.scale;
+      patchSettings(active.key, { crop, custom: next, scale });
+    },
+    [active, lock, patchSettings],
+  );
+
   const setQuality = useCallback((v: number) => change({ quality: clamp(Math.round(v), QUALITY_MIN, QUALITY_MAX) }), [change]);
   const setFormat = useCallback((format: OutputFormat) => change({ format }), [change]);
   const setKeepExif = useCallback((keepExif: boolean) => change({ keepExif }), [change]);
 
-  /** Copies the visible image's quality, format and scale to every image. */
+  /** Copies the visible image's quality, format and scale to every image. Each image keeps its own crop. */
   const applyToAll = useCallback(() => {
     if (!active) return;
     const { scale, quality, format, keepExif } = active.settings;
-    setItems(prev => prev.map(i => ({ ...i, settings: { scale, quality, format, keepExif, custom: null } })));
+    setItems(prev => prev.map(i => ({ ...i, settings: { scale, quality, format, keepExif, custom: null, crop: i.settings.crop } })));
   }, [active]);
 
   const download = useCallback(() => active && save(active), [active]);
@@ -358,6 +383,8 @@ export const useSqueeze = () => {
     source: active,
     output: active?.output ?? null,
     dims,
+    base: active ? baseOf(active) : null,
+    crop: settings?.crop ?? null,
     scale: settings?.scale ?? defaults.scale,
     isCustomSize: settings?.custom != null,
     lock,
@@ -377,6 +404,7 @@ export const useSqueeze = () => {
     setScale,
     setDimension,
     toggleLock,
+    setCrop,
     setQuality,
     setFormat,
     setKeepExif,

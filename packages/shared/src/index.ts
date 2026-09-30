@@ -8,6 +8,7 @@ export const OUTPUT_FORMATS = ['jpeg', 'webp', 'png'] as const;
 export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
 export type CompressOptions = z.infer<typeof compressOptionsSchema>;
+export type Crop = NonNullable<CompressOptions['crop']>;
 
 /** Returned by `POST /api/images` after the source is stored. */
 export type SourceInfo = {

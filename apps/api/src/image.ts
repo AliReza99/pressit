@@ -36,12 +36,15 @@ export type CompressResult = {
 
 export const compress = async (
   input: Buffer,
-  { width, height, quality, format, keepExif }: CompressOptions,
+  { width, height, quality, format, keepExif, crop }: CompressOptions,
   sourceHasExif: boolean,
 ): Promise<CompressResult> => {
   // Pixels are rotated upright, so the kept EXIF must not rotate them again.
   // libvips drops the orientation tag during autoOrient.
-  let pipeline = open(input).autoOrient().resize(width, height, { fit: 'fill' });
+  let pipeline = open(input).autoOrient();
+  // Called before resize, so the crop is taken from the upright source pixels.
+  if (crop) pipeline = pipeline.extract(crop);
+  pipeline = pipeline.resize(width, height, { fit: 'fill' });
 
   switch (format) {
     case 'jpeg':

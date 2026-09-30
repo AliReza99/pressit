@@ -79,6 +79,45 @@ describe('api', () => {
     expect([meta.width, meta.height, meta.hasAlpha]).toEqual([300, 10, true]);
   });
 
+  it('crops the upright image before resizing', async () => {
+    // 400×200 stored red|blue, orientation 6 displays it 200×400 with red on top.
+    const halves = await sharp({ create: { width: 400, height: 200, channels: 3, background: '#ff0000' } })
+      .composite([{ input: { create: { width: 200, height: 200, channels: 3, background: '#0000ff' } }, left: 200, top: 0 }])
+      .jpeg({ quality: 100 })
+      .withMetadata({ orientation: 6 })
+      .toBuffer();
+    const app = createApp();
+    const info = (await (await upload(app, halves, 'h.jpg', 'image/jpeg')).json()) as SourceInfo;
+    const res = await compressReq(app, info.id, {
+      width: 50,
+      height: 100,
+      quality: 90,
+      format: 'png',
+      keepExif: false,
+      crop: { left: 50, top: 220, width: 100, height: 180 },
+    });
+    expect(res.status).toBe(200);
+    const { data, info: out } = await sharp(Buffer.from(await res.arrayBuffer())).raw().toBuffer({ resolveWithObject: true });
+    expect([out.width, out.height]).toEqual([50, 100]);
+    const [r, , b] = data.subarray(0, 3);
+    expect(b).toBeGreaterThan(200);
+    expect(r).toBeLessThan(50);
+  });
+
+  it('rejects a crop outside the image', async () => {
+    const app = createApp();
+    const info = (await (await upload(app, await plainPng(), 'a.png', 'image/png')).json()) as SourceInfo;
+    const res = await compressReq(app, info.id, {
+      width: 10,
+      height: 10,
+      quality: 50,
+      format: 'png',
+      keepExif: false,
+      crop: { left: 40, top: 0, width: 30, height: 10 },
+    });
+    expect(res.status).toBe(400);
+  });
+
   it('validates options and unknown ids', async () => {
     const app = createApp();
     const info = (await (await upload(app, await plainPng(), 'a.png', 'image/png')).json()) as SourceInfo;
