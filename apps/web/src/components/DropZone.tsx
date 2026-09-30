@@ -35,8 +35,6 @@ export const DropZone = ({ onPick, onFiles, uploading }: DropZoneProps) => {
     <button type="button" className="dropzone" data-over={over} onClick={onPick} aria-busy={uploading} {...handlers}>
       <span className="dropzone-blocks" aria-hidden>
         <span />
-        <span />
-        <span />
       </span>
       <span className="dropzone-title">
         {uploading ? (
