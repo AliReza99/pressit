@@ -36,6 +36,17 @@ const readCollapsed = () => {
   }
 };
 
+/** Field label with the change from the original, e.g. "−50%", once the value differs. */
+const DimLabel = ({ text, from, to }: { text: string; from?: number; to?: number }) => {
+  const pct = from && to ? Math.round((to / from - 1) * 100) : 0;
+  return (
+    <span className="dim-label">
+      <span>{text}</span>
+      {pct !== 0 && <span>{pct > 0 ? `+${pct}` : `−${-pct}`}%</span>}
+    </span>
+  );
+};
+
 const qualityNote = (q: number) => (q > 85 ? 'high' : q > 50 ? 'balanced' : 'aggressive');
 
 export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
@@ -109,11 +120,30 @@ export const SettingsPanel = ({ squeeze }: { squeeze: Squeeze }) => {
 
         <Section title="DIMENSIONS" meta={dims ? `${dims.w}×${dims.h}` : undefined}>
           <div className="dims">
-            <DimensionInput label="WIDTH PX" value={dims?.w ?? null} onCommit={v => squeeze.setDimension('w', v)} />
+            <label className="dim dim-original">
+              ORIGINAL W
+              <input type="number" disabled value={info?.width ?? ''} />
+            </label>
+            <span className="dims-arrow" aria-hidden>
+              ↓
+            </span>
+            <label className="dim dim-original">
+              ORIGINAL H
+              <input type="number" disabled value={info?.height ?? ''} />
+            </label>
+            <DimensionInput
+              label={<DimLabel text="WIDTH PX" from={info?.width} to={dims?.w} />}
+              value={dims?.w ?? null}
+              onCommit={v => squeeze.setDimension('w', v)}
+            />
             <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={squeeze.toggleLock}>
               {lock ? 'LOCK' : 'FREE'}
             </button>
-            <DimensionInput label="HEIGHT PX" value={dims?.h ?? null} onCommit={v => squeeze.setDimension('h', v)} />
+            <DimensionInput
+              label={<DimLabel text="HEIGHT PX" from={info?.height} to={dims?.h} />}
+              value={dims?.h ?? null}
+              onCommit={v => squeeze.setDimension('h', v)}
+            />
           </div>
           <div className="note">{lock ? 'aspect ratio preserved' : 'ratio unlocked, image may stretch'}</div>
         </Section>

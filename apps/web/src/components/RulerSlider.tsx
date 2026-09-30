@@ -11,7 +11,11 @@ type RulerSliderProps = {
   valueText?: string;
 };
 
-/** Tick-mark ruler with a square orange handle, from the Squeeze design. */
+/**
+ * Tick-mark ruler with a square orange handle, from the Squeeze design.
+ * The ruler always spans 0..max so equal values line up across sliders;
+ * `min` only clamps (the stretch below it is unreachable).
+ */
 export const RulerSlider = ({ label, value, min, max, onChange, disabled = false, valueText }: RulerSliderProps) => {
   const dragging = useRef(false);
   const rulerRef = useRef<HTMLDivElement>(null);
@@ -33,7 +37,7 @@ export const RulerSlider = ({ label, value, min, max, onChange, disabled = false
   const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
     const t = clamp((e.clientX - r.left) / r.width, 0, 1);
-    const raw = min + t * (max - min);
+    const raw = t * max;
     onChange(clamp(Math.round(raw / 5) * 5, min, max));
   };
 
@@ -86,7 +90,7 @@ export const RulerSlider = ({ label, value, min, max, onChange, disabled = false
       onKeyDown={onKeyDown}
     >
       <div className="ruler-track" />
-      <div className="ruler-handle" style={{ left: `${((value - min) / (max - min)) * 100}%` }} />
+      <div className="ruler-handle" style={{ left: `${(value / max) * 100}%` }} />
     </div>
   );
 };

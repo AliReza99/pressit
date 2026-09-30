@@ -650,9 +650,15 @@ button {
   grid-template-columns: minmax(0, 1fr) 40px minmax(0, 1fr);
   gap: 6px;
   align-items: end;
-  margin-top: 10px;
-  padding-top: 10px;
-  border-top: 1px dashed var(--ink);
+  row-gap: 8px;
+}
+
+.dims-arrow {
+  height: 38px;
+  display: grid;
+  place-items: center;
+  font: 500 14px var(--mono);
+  opacity: 0.45;
 }
 
 .dim {
@@ -676,6 +682,22 @@ button {
 
 .dim input:focus-visible {
   border-color: var(--accent);
+}
+
+.dim input:disabled {
+  border-style: dashed;
+  background: transparent;
+  cursor: not-allowed;
+}
+
+.dim-original {
+  opacity: 0.45;
+}
+
+.dim-label {
+  display: flex;
+  justify-content: space-between;
+  gap: 4px;
 }
 
 .lock {

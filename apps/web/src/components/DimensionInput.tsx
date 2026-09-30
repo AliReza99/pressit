@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { MAX_DIMENSION } from '@squeeze/shared';
 
 type DimensionInputProps = {
-  label: string;
+  label: ReactNode;
   value: number | null;
   onCommit: (value: number) => void;
 };
@@ -17,7 +17,7 @@ const COMMIT_DEBOUNCE_MS = 300;
 export const DimensionInput = ({ label, value, onCommit }: DimensionInputProps) => {
   const [draft, setDraft] = useState(value === null ? '' : String(value));
   const [focused, setFocused] = useState(false);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
 
   useEffect(() => {
     if (!focused) setDraft(value === null ? '' : String(value));
