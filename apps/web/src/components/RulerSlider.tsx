@@ -1,4 +1,4 @@
-import { useRef, type KeyboardEvent, type PointerEvent } from 'react';
+import { useEffect, useRef, type KeyboardEvent, type PointerEvent } from 'react';
 import { clamp } from '../lib/format';
 
 type RulerSliderProps = {
@@ -14,6 +14,21 @@ type RulerSliderProps = {
 /** Tick-mark ruler with a square orange handle, from the Squeeze design. */
 export const RulerSlider = ({ label, value, min, max, onChange, disabled = false, valueText }: RulerSliderProps) => {
   const dragging = useRef(false);
+  const rulerRef = useRef<HTMLDivElement>(null);
+
+  // Native listener: React's onWheel is passive, so it cannot preventDefault page scroll.
+  useEffect(() => {
+    const el = rulerRef.current;
+    if (!el || disabled) return;
+    const onWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+      e.preventDefault();
+      const step = e.shiftKey ? 10 : 1;
+      onChange(clamp(value + (e.deltaY < 0 ? step : -step), min, max));
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [value, min, max, disabled, onChange]);
 
   const fromPointer = (e: PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect();
@@ -52,6 +67,7 @@ export const RulerSlider = ({ label, value, min, max, onChange, disabled = false
 
   return (
     <div
+      ref={rulerRef}
       className="ruler"
       role="slider"
       tabIndex={disabled ? -1 : 0}
