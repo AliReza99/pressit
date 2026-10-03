@@ -22,7 +22,7 @@ design/     The Claude Design handoff this was built from (prototype + chat tran
 
 ```sh
 pnpm install
-pnpm dev        # web on http://localhost:5173 (proxies /api), api on http://127.0.0.1:8787
+pnpm dev        # web on http://localhost:3104 (proxies /api), api on http://127.0.0.1:8787
 pnpm test       # api tests, run against the real sharp pipeline
 pnpm typecheck
 pnpm build      # builds web, then bundles the api
