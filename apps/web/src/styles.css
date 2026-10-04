@@ -40,7 +40,7 @@ button {
   height: 100vh;
   height: 100dvh;
   overflow: hidden;
-  padding: 16px 20px;
+  padding: 6px 20px 16px;
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -772,7 +772,7 @@ button {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  max-height: calc(100vh - 100px);
+  max-height: calc(100vh - 70px);
   overflow-y: auto;
 }
 
