@@ -1,5 +1,5 @@
 {
-  "name": "squeeze",
+  "name": "pressit",
   "private": true,
   "type": "module",
   "packageManager": "pnpm@10.33.0",
@@ -7,9 +7,9 @@
     "node": ">=20"
   },
   "scripts": {
-    "dev": "pnpm --parallel --filter @squeeze/api --filter @squeeze/web dev",
-    "build": "pnpm --filter @squeeze/web build && pnpm --filter @squeeze/api build",
-    "start": "pnpm --filter @squeeze/api start",
+    "dev": "pnpm --parallel --filter @pressit/api --filter @pressit/web dev",
+    "build": "pnpm --filter @pressit/web build && pnpm --filter @pressit/api build",
+    "start": "pnpm --filter @pressit/api start",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test"
   }

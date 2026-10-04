@@ -12,7 +12,7 @@ type RulerSliderProps = {
 };
 
 /**
- * Tick-mark ruler with a square orange handle, from the Squeeze design.
+ * Tick-mark ruler with a square orange handle, from the PressIt design.
  * The ruler always spans 0..max so equal values line up across sliders;
  * `min` only clamps (the stretch below it is unreachable).
  */

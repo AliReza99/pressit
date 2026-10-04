@@ -16,7 +16,7 @@ importers:
       '@hono/zod-validator':
         specifier: ^0.9.1
         version: 0.9.1(hono@4.13.11)(zod@4.6.5)
-      '@squeeze/shared':
+      '@pressit/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       await-to-js:
@@ -50,7 +50,7 @@ importers:
 
   apps/web:
     dependencies:
-      '@squeeze/shared':
+      '@pressit/shared':
         specifier: workspace:*
         version: link:../../packages/shared
       await-to-js:

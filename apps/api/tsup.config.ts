@@ -7,5 +7,5 @@ export default defineConfig({
   platform: 'node',
   clean: true,
   // The shared package ships TypeScript source, so bundle it in.
-  noExternal: ['@squeeze/shared'],
+  noExternal: ['@pressit/shared'],
 });

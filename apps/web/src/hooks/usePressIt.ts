@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { to } from 'await-to-js';
-import { extensionFor, MAX_DIMENSION, MAX_UPLOAD_BYTES, type Crop, type OutputFormat, type SourceInfo } from '@squeeze/shared';
+import { extensionFor, MAX_DIMENSION, MAX_UPLOAD_BYTES, type Crop, type OutputFormat, type SourceInfo } from '@pressit/shared';
 import { compressImage, HttpError, releaseImage, uploadImage, type CompressedImage } from '../lib/api';
 import { clamp, formatFromMime } from '../lib/format';
 
@@ -67,7 +67,7 @@ const dimsOf = (item: Item): Dimensions => {
   );
 };
 
-const defaultName = (file: File) => `${file.name.replace(/\.[^.]+$/, '')}-squeezed`;
+const defaultName = (file: File) => `${file.name.replace(/\.[^.]+$/, '')}-pressed`;
 
 const downloadName = ({ name, settings }: Item) => `${name}.${extensionFor(settings.format)}`;
 
@@ -85,7 +85,7 @@ const pause = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
 type Defaults = Omit<Settings, 'custom' | 'crop' | 'format'> & { format: OutputFormat | null };
 
 const DEFAULTS: Defaults = { scale: 60, quality: 70, format: null, keepExif: false };
-const STORAGE_KEY = 'squeeze:settings';
+const STORAGE_KEY = 'pressit:settings';
 const FORMATS: readonly OutputFormat[] = ['jpeg', 'webp', 'png'];
 
 const readDefaults = (): Defaults => {
@@ -102,7 +102,7 @@ const readDefaults = (): Defaults => {
   }
 };
 
-export const useSqueeze = () => {
+export const usePressIt = () => {
   const [items, setItems] = useState<Item[]>([]);
   const [activeKey, setActiveKey] = useState<string | null>(null);
   const [defaults, setDefaults] = useState(readDefaults);
@@ -414,4 +414,4 @@ export const useSqueeze = () => {
   };
 };
 
-export type Squeeze = ReturnType<typeof useSqueeze>;
+export type PressIt = ReturnType<typeof usePressIt>;

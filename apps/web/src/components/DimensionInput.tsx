@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { MAX_DIMENSION } from '@squeeze/shared';
+import { MAX_DIMENSION } from '@pressit/shared';
 
 type DimensionInputProps = {
   label: ReactNode;

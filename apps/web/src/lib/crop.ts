@@ -1,4 +1,4 @@
-import type { Crop } from '@squeeze/shared';
+import type { Crop } from '@pressit/shared';
 import { clamp } from './format';
 
 /** Crop rectangle in source pixels, fractional while it is being dragged. */

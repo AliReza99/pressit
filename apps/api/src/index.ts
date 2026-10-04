@@ -21,5 +21,5 @@ if (existsSync(webDist)) {
 }
 
 serve({ fetch: server.fetch, port, hostname }, info => {
-  console.log(`squeeze api listening on http://${info.address}:${info.port}`);
+  console.log(`pressit api listening on http://${info.address}:${info.port}`);
 });

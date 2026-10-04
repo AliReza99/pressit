@@ -1,5 +1,5 @@
 {
-  "name": "@squeeze/api",
+  "name": "@pressit/api",
   "version": "0.0.0",
   "private": true,
   "type": "module",
@@ -13,7 +13,7 @@
   "dependencies": {
     "@hono/node-server": "^2.1.3",
     "@hono/zod-validator": "^0.9.1",
-    "@squeeze/shared": "workspace:*",
+    "@pressit/shared": "workspace:*",
     "await-to-js": "^3.0.0",
     "hono": "^4.13.11",
     "sharp": "^0.35.5",

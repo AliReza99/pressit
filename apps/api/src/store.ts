@@ -1,4 +1,4 @@
-import type { SourceInfo } from '@squeeze/shared';
+import type { SourceInfo } from '@pressit/shared';
 
 type Entry = {
   buffer: Buffer;

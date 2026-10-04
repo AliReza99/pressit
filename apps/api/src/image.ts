@@ -1,5 +1,5 @@
 import sharp from 'sharp';
-import type { CompressOptions } from '@squeeze/shared';
+import type { CompressOptions } from '@pressit/shared';
 
 // Refuse decompression bombs: 8000×8000 output max, allow a generous source.
 const LIMIT_INPUT_PIXELS = 20_000 * 20_000;

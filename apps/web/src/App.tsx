@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { extensionFor, type Crop } from '@squeeze/shared';
+import { extensionFor, type Crop } from '@pressit/shared';
 import { Compare } from './components/Compare';
 import { CropEditor, type CropAspect } from './components/CropEditor';
 import { DropZone } from './components/DropZone';
@@ -7,20 +7,20 @@ import { Queue } from './components/Queue';
 import { SettingsPanel } from './components/SettingsPanel';
 import { useGlobalImageInput } from './hooks/useGlobalImageInput';
 import { useQueueKeys } from './hooks/useQueueKeys';
-import { useSqueeze } from './hooks/useSqueeze';
+import { usePressIt } from './hooks/usePressIt';
 import { fitAspect, fullRect, sameCrop, toCrop } from './lib/crop';
 import { formatBytes } from './lib/format';
 
 type Cropping = { initial: Crop | null; aspect: CropAspect | null };
 
 export const App = () => {
-  const squeeze = useSqueeze();
-  const { source, output, dims, crop, load, error, notice, working } = squeeze;
+  const pressIt = usePressIt();
+  const { source, output, dims, crop, load, error, notice, working } = pressIt;
   const input = useRef<HTMLInputElement>(null);
   const [cropping, setCropping] = useState<Cropping | null>(null);
 
   // The editor belongs to the image it was opened on.
-  useEffect(() => setCropping(null), [squeeze.activeKey]);
+  useEffect(() => setCropping(null), [pressIt.activeKey]);
 
   // An output made for an earlier crop would be framed wrong, so it waits for the new one.
   const shown = output && sameCrop(output.crop, crop) ? output : null;
@@ -39,15 +39,15 @@ export const App = () => {
   const pick = useCallback(() => input.current?.click(), []);
   const onFiles = useCallback((files: File[]) => void load(files), [load]);
   useGlobalImageInput(onFiles);
-  const keys = useMemo(() => squeeze.items.map(i => i.key), [squeeze.items]);
-  useQueueKeys(keys, squeeze.activeKey, squeeze.select);
+  const keys = useMemo(() => pressIt.items.map(i => i.key), [pressIt.items]);
+  useQueueKeys(keys, pressIt.activeKey, pressIt.select);
 
   return (
     <div className="app">
       <header className="header">
         <div className="brand">
           <h1>
-            Squeeze<span>.</span>
+            PressIt<span>.</span>
           </h1>
           <span className="tagline">Make images lighter</span>
         </div>
@@ -78,7 +78,7 @@ export const App = () => {
               initial={cropping.initial}
               aspect={cropping.aspect}
               onApply={next => {
-                squeeze.setCrop(next);
+                pressIt.setCrop(next);
                 setCropping(null);
               }}
               onCancel={() => setCropping(null)}
@@ -96,29 +96,29 @@ export const App = () => {
               afterLabel={shown ? formatBytes(shown.blob.size) : '…'}
               name={source.name}
               extension={extensionFor(source.settings.format)}
-              position={squeeze.items.length > 1 ? `${squeeze.items.indexOf(source) + 1}/${squeeze.items.length}` : null}
-              onRename={name => squeeze.rename(source.key, name)}
+              position={pressIt.items.length > 1 ? `${pressIt.items.indexOf(source) + 1}/${pressIt.items.length}` : null}
+              onRename={name => pressIt.rename(source.key, name)}
               onFiles={onFiles}
-              onRemove={() => squeeze.remove(source.key)}
+              onRemove={() => pressIt.remove(source.key)}
               onCrop={openCrop}
-              onDownload={squeeze.download}
-              canDownload={!!squeeze.output}
+              onDownload={pressIt.download}
+              canDownload={!!pressIt.output}
             />
           ) : (
             <div className="compare">
-              <DropZone onPick={pick} onFiles={onFiles} uploading={squeeze.uploading} />
+              <DropZone onPick={pick} onFiles={onFiles} uploading={pressIt.uploading} />
               {/* Reserve the filename caption so the layout doesn't shift once an image is chosen. */}
               <div className="caption" aria-hidden>
                 &nbsp;
               </div>
             </div>
           )}
-          <Queue squeeze={squeeze} onPick={pick} onFiles={onFiles} />
+          <Queue pressIt={pressIt} onPick={pick} onFiles={onFiles} />
           <div className="status" role="status" aria-live="polite">
             {error ? <span className="status-error">{error}</span> : (notice ?? (working ? 'squeezing…' : null))}
           </div>
         </div>
-        <SettingsPanel squeeze={squeeze} onCropToFit={cropToFit} />
+        <SettingsPanel pressIt={pressIt} onCropToFit={cropToFit} />
       </main>
     </div>
   );

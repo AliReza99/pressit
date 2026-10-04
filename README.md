@@ -1,4 +1,4 @@
-# Squeeze
+# PressIt
 
 A local image press. Drop in an image, resize it, pick a quality and an output format, choose whether to keep EXIF, compare before and after, and download. Everything runs on your machine: the API binds to `127.0.0.1` and keeps originals in memory only.
 

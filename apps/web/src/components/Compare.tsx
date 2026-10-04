@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type MouseEvent, type PointerEvent } from 'react';
-import type { Crop } from '@squeeze/shared';
+import type { Crop } from '@pressit/shared';
 import { cropImageStyle } from '../lib/crop';
 import { clamp } from '../lib/format';
 import { useDragOver } from './DropZone';
@@ -30,7 +30,7 @@ type CompareProps = {
 
 const MAX_ZOOM = 16;
 const SPLIT_GRAB_PX = 24;
-const LAYOUT_KEY = 'squeeze:compare-layout';
+const LAYOUT_KEY = 'pressit:compare-layout';
 
 type Layout = 'slider' | 'side';
 

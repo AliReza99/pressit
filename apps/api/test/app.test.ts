@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
-import { OUTPUT_HEADERS, type CompressOptions, type SourceInfo } from '@squeeze/shared';
+import { OUTPUT_HEADERS, type CompressOptions, type SourceInfo } from '@pressit/shared';
 import { createApp } from '../src/app.js';
 import { createSourceStore } from '../src/store.js';
 
@@ -8,7 +8,7 @@ import { createSourceStore } from '../src/store.js';
 const rotatedJpeg = () =>
   sharp({ create: { width: 400, height: 200, channels: 3, background: '#d9421c' } })
     .jpeg({ quality: 95 })
-    .withExif({ IFD0: { Make: 'SqueezeCam', Model: 'Test' } })
+    .withExif({ IFD0: { Make: 'PressItCam', Model: 'Test' } })
     .withMetadata({ orientation: 6 })
     .toBuffer();
 

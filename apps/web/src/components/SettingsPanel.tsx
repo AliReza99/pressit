@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { extensionFor, type OutputFormat } from '@squeeze/shared';
-import { QUALITY_MAX, QUALITY_MIN, SCALE_MAX, SCALE_MIN, type Squeeze } from '../hooks/useSqueeze';
+import { extensionFor, type OutputFormat } from '@pressit/shared';
+import { QUALITY_MAX, QUALITY_MIN, SCALE_MAX, SCALE_MIN, type PressIt } from '../hooks/usePressIt';
 import { formatBytes } from '../lib/format';
 import { DownloadIcon } from './Compare';
 import { DimensionInput } from './DimensionInput';
@@ -27,7 +27,7 @@ const Section = ({ title, meta, children }: { title: string; meta?: ReactNode; c
   </section>
 );
 
-const COLLAPSED_KEY = 'squeeze:settings-collapsed';
+const COLLAPSED_KEY = 'pressit:settings-collapsed';
 
 const readCollapsed = () => {
   try {
@@ -54,8 +54,8 @@ const stretches = (dims: { w: number; h: number }, base: { w: number; h: number 
 
 const qualityNote = (q: number) => (q > 85 ? 'high' : q > 50 ? 'balanced' : 'aggressive');
 
-export const SettingsPanel = ({ squeeze, onCropToFit }: { squeeze: Squeeze; onCropToFit: () => void }) => {
-  const { source, output, dims, base, crop, scale, isCustomSize, lock, quality, format, keepExif } = squeeze;
+export const SettingsPanel = ({ pressIt, onCropToFit }: { pressIt: PressIt; onCropToFit: () => void }) => {
+  const { source, output, dims, base, crop, scale, isCustomSize, lock, quality, format, keepExif } = pressIt;
   const [collapsed, setCollapsed] = useState(readCollapsed);
   const info = source?.info;
   const lossless = format === 'png';
@@ -103,7 +103,7 @@ export const SettingsPanel = ({ squeeze, onCropToFit }: { squeeze: Squeeze; onCr
 
       <div id="compression-settings" hidden={collapsed}>
         <Section title="SIZE" meta={`${scale}%`}>
-          <RulerSlider label="Scale" value={scale} min={SCALE_MIN} max={SCALE_MAX} onChange={squeeze.setScale} valueText={`${scale}%`} />
+          <RulerSlider label="Scale" value={scale} min={SCALE_MIN} max={SCALE_MAX} onChange={pressIt.setScale} valueText={`${scale}%`} />
         </Section>
 
         <Section title="QUALITY" meta={lossless ? 'LOSSLESS' : `${quality}%`}>
@@ -112,7 +112,7 @@ export const SettingsPanel = ({ squeeze, onCropToFit }: { squeeze: Squeeze; onCr
             value={quality}
             min={QUALITY_MIN}
             max={QUALITY_MAX}
-            onChange={squeeze.setQuality}
+            onChange={pressIt.setQuality}
             disabled={lossless}
             valueText={lossless ? 'lossless' : `${quality} of 100`}
           />
@@ -139,15 +139,15 @@ export const SettingsPanel = ({ squeeze, onCropToFit }: { squeeze: Squeeze; onCr
             <DimensionInput
               label={<DimLabel text="WIDTH PX" from={base?.w} to={dims?.w} />}
               value={dims?.w ?? null}
-              onCommit={v => squeeze.setDimension('w', v)}
+              onCommit={v => pressIt.setDimension('w', v)}
             />
-            <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={squeeze.toggleLock}>
+            <button type="button" className="lock" aria-pressed={lock} title="Preserve aspect ratio" onClick={pressIt.toggleLock}>
               {lock ? 'LOCK' : 'FREE'}
             </button>
             <DimensionInput
               label={<DimLabel text="HEIGHT PX" from={base?.h} to={dims?.h} />}
               value={dims?.h ?? null}
-              onCommit={v => squeeze.setDimension('h', v)}
+              onCommit={v => pressIt.setDimension('h', v)}
             />
           </div>
           {!lock && dims && base && stretches(dims, base) ? (
@@ -163,12 +163,12 @@ export const SettingsPanel = ({ squeeze, onCropToFit }: { squeeze: Squeeze; onCr
         </Section>
 
         <Section title="EXIF" meta={exifStatus}>
-          <Segmented label="EXIF metadata" options={EXIF_OPTIONS} value={keepExif} onChange={squeeze.setKeepExif} />
+          <Segmented label="EXIF metadata" options={EXIF_OPTIONS} value={keepExif} onChange={pressIt.setKeepExif} />
           <div className="note">{exifNote}</div>
         </Section>
 
         <Section title="FORMAT">
-          <Segmented label="Output format" options={FORMATS} value={format} onChange={squeeze.setFormat} />
+          <Segmented label="Output format" options={FORMATS} value={format} onChange={pressIt.setFormat} />
         </Section>
       </div>
 
@@ -199,15 +199,15 @@ export const SettingsPanel = ({ squeeze, onCropToFit }: { squeeze: Squeeze; onCr
           <span>{saved < 0 ? 'LARGER BY' : 'SAVED'}</span>
           <span className="saved-value">{saved < 0 ? `+${-saved}` : saved}%</span>
         </div>
-        <button type="button" className="download" disabled={!output} onClick={squeeze.download}>
+        <button type="button" className="download" disabled={!output} onClick={pressIt.download}>
           DOWNLOAD {extensionFor(format).toUpperCase()} <DownloadIcon />
         </button>
-        {squeeze.items.length > 1 && (
+        {pressIt.items.length > 1 && (
           <div className="batch">
-            <button type="button" className="download download-alt" disabled={squeeze.readyCount === 0} onClick={() => void squeeze.downloadAll()}>
-              DOWNLOAD ALL ({squeeze.readyCount}/{squeeze.items.length}) <DownloadIcon />
+            <button type="button" className="download download-alt" disabled={pressIt.readyCount === 0} onClick={() => void pressIt.downloadAll()}>
+              DOWNLOAD ALL ({pressIt.readyCount}/{pressIt.items.length}) <DownloadIcon />
             </button>
-            <button type="button" className="btn-outline" onClick={squeeze.applyToAll}>
+            <button type="button" className="btn-outline" onClick={pressIt.applyToAll}>
               APPLY THESE SETTINGS TO ALL
             </button>
           </div>

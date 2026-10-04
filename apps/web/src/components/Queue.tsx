@@ -1,5 +1,5 @@
 import { useEffect } from 'react';
-import type { Item, Squeeze } from '../hooks/useSqueeze';
+import type { Item, PressIt } from '../hooks/usePressIt';
 import { useDragOver } from './DropZone';
 
 const savedLabel = ({ info, output, working, error }: Item) => {
@@ -9,8 +9,8 @@ const savedLabel = ({ info, output, working, error }: Item) => {
   return saved < 0 ? `+${-saved}%` : `-${saved}%`;
 };
 
-export const Queue = ({ squeeze, onPick, onFiles }: { squeeze: Squeeze; onPick: () => void; onFiles: (files: File[]) => void }) => {
-  const { items, activeKey } = squeeze;
+export const Queue = ({ pressIt, onPick, onFiles }: { pressIt: PressIt; onPick: () => void; onFiles: (files: File[]) => void }) => {
+  const { items, activeKey } = pressIt;
   const { over, handlers } = useDragOver(onFiles);
   useEffect(() => {
     document.querySelector('.queue-item[data-active="true"]')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
@@ -21,7 +21,7 @@ export const Queue = ({ squeeze, onPick, onFiles }: { squeeze: Squeeze; onPick: 
       <div className="queue-head">
         <span>IMAGES</span>
         {items.length > 0 && (
-          <button type="button" className="queue-clear" onClick={squeeze.clear}>
+          <button type="button" className="queue-clear" onClick={pressIt.clear}>
             CLEAR ALL
           </button>
         )}
@@ -29,11 +29,11 @@ export const Queue = ({ squeeze, onPick, onFiles }: { squeeze: Squeeze; onPick: 
       <ul className="queue-list">
         {items.map(item => (
           <li key={item.key} className="queue-item" data-active={item.key === activeKey} data-failed={item.error !== null}>
-            <button type="button" className="queue-pick" aria-pressed={item.key === activeKey} title={item.file.name} onClick={() => squeeze.select(item.key)}>
+            <button type="button" className="queue-pick" aria-pressed={item.key === activeKey} title={item.file.name} onClick={() => pressIt.select(item.key)}>
               <img src={item.url} alt="" draggable={false} />
               <span className="queue-label">{savedLabel(item)}</span>
             </button>
-            <button type="button" className="queue-remove" aria-label={`Remove ${item.file.name}`} onClick={() => squeeze.remove(item.key)}>
+            <button type="button" className="queue-remove" aria-label={`Remove ${item.file.name}`} onClick={() => pressIt.remove(item.key)}>
               ×
             </button>
           </li>

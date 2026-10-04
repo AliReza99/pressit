@@ -4,13 +4,13 @@ import { bodyLimit } from 'hono/body-limit';
 import { zValidator } from '@hono/zod-validator';
 import { z } from 'zod';
 import { to } from 'await-to-js';
-import { compressOptionsSchema } from '@squeeze/shared/schema';
+import { compressOptionsSchema } from '@pressit/shared/schema';
 import {
   MAX_UPLOAD_BYTES,
   OUTPUT_HEADERS,
   type ApiError,
   type SourceInfo,
-} from '@squeeze/shared';
+} from '@pressit/shared';
 import { compress, inspect } from './image.js';
 import { createSourceStore, type SourceStore } from './store.js';
 

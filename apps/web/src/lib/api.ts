@@ -1,5 +1,5 @@
 import { to } from 'await-to-js';
-import { OUTPUT_HEADERS, type ApiError, type CompressOptions, type SourceInfo } from '@squeeze/shared';
+import { OUTPUT_HEADERS, type ApiError, type CompressOptions, type SourceInfo } from '@pressit/shared';
 
 export class HttpError extends Error {
   constructor(

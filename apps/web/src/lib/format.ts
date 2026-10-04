@@ -1,4 +1,4 @@
-import type { OutputFormat } from '@squeeze/shared';
+import type { OutputFormat } from '@pressit/shared';
 
 export const formatBytes = (n: number): string =>
   n < 1024 ? `${n} B` : n < 1048576 ? `${(n / 1024).toFixed(1)} KB` : `${(n / 1048576).toFixed(2)} MB`;

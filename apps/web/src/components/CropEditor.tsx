@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
-import type { Crop } from '@squeeze/shared';
+import type { Crop } from '@pressit/shared';
 import { fullRect, moveRect, resizeRect, toCrop, withAspect, type Handle, type Rect } from '../lib/crop';
 import { Segmented } from './Segmented';
 
