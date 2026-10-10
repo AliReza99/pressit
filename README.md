@@ -51,3 +51,7 @@ pnpm start      # production: api serves the built web app on http://127.0.0.1:8
 | `GET` | `/api/health` | | `{ ok: true }` |
 
 The original is uploaded once. Each settings change then sends only a small JSON body. The API keeps at most 16 originals and evicts them after 30 idle minutes. If the API restarts, the web app uploads the image again on its own.
+
+## License
+
+[MIT](LICENSE)
