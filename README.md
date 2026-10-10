@@ -21,28 +21,22 @@
 
 Your images never leave your computer.
 
-## Install
+## Install and use
 
 1. Install [Node.js](https://nodejs.org) (version 20 or newer).
 2. Open a terminal and run:
 
    ```sh
-   corepack enable
    git clone https://github.com/AliReza99/pressit.git
    cd pressit
    pnpm install
    pnpm build
+   pnpm start
    ```
 
-## Use
+3. Open <http://127.0.0.1:8787> in your browser.
 
-In the `pressit` folder, run:
-
-```sh
-pnpm start
-```
-
-Then open <http://127.0.0.1:8787> in your browser. To stop PressIt, press `Ctrl+C` in the terminal.
+To stop PressIt, press `Ctrl+C` in the terminal. To start it again later, run `pnpm start` in the `pressit` folder.
 
 <p align="center">
   <img src="docs/crop.png" alt="Cropping a photo in PressIt">
