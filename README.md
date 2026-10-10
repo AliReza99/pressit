@@ -10,7 +10,6 @@ apps/
   api/      Hono on Node, image processing with sharp (libvips + mozjpeg)
 packages/
   shared/   Constants, types and zod schemas shared by both apps
-design/     The Claude Design handoff this was built from (prototype + chat transcripts)
 ```
 
 ## Requirements
