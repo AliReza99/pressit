@@ -1,8 +1,73 @@
-# PressIt
+<p align="center">
+  <img src="docs/logo.svg" alt="PressIt logo" width="96" height="96">
+</p>
 
-A local image press. Drop in an image, resize it, pick a quality and an output format, choose whether to keep EXIF, compare before and after, and download. Everything runs on your machine: the API binds to `127.0.0.1` and keeps originals in memory only.
+<h1 align="center">PressIt</h1>
 
-## Layout
+<p align="center">Make your images smaller. On your own computer, no uploads.</p>
+
+<p align="center">
+  <img src="docs/main.png" alt="PressIt comparing an original photo with a compressed version that is 72% smaller">
+</p>
+
+## What it does
+
+- Drop, browse or paste images. Add as many as you like.
+- Make them smaller: change size, quality and format (JPG, WebP, PNG).
+- Crop to any shape.
+- Drag the slider to compare before and after, and see how much space you saved.
+- Remove hidden photo data (camera, GPS location, date) or keep it.
+- Download one image or all of them.
+
+Your images never leave your computer.
+
+## Install
+
+1. Install [Node.js](https://nodejs.org) (version 20 or newer).
+2. Open a terminal and run:
+
+   ```sh
+   corepack enable
+   git clone https://github.com/AliReza99/pressit.git
+   cd pressit
+   pnpm install
+   pnpm build
+   ```
+
+## Use
+
+In the `pressit` folder, run:
+
+```sh
+pnpm start
+```
+
+Then open <http://127.0.0.1:8787> in your browser. To stop PressIt, press `Ctrl+C` in the terminal.
+
+<p align="center">
+  <img src="docs/crop.png" alt="Cropping a photo in PressIt">
+</p>
+
+## Update
+
+```sh
+git pull
+pnpm install
+pnpm build
+```
+
+## Questions
+
+**Which images work?** JPG, PNG, WebP and GIF, up to 50 MB each. For GIFs, only the first frame is kept.
+
+**Port 8787 is already in use.** Pick another one: `PORT=9000 pnpm start`, then open <http://127.0.0.1:9000>.
+
+## For developers
+
+<details>
+<summary>Project layout, commands and API</summary>
+
+### Layout
 
 ```
 apps/
@@ -12,36 +77,21 @@ packages/
   shared/   Constants, types and zod schemas shared by both apps
 ```
 
-## Requirements
-
-- Node 20+
-- pnpm 10+
-
-## Commands
+### Commands
 
 ```sh
-pnpm install
 pnpm dev        # web on http://localhost:3104 (proxies /api), api on http://127.0.0.1:8787
 pnpm test       # api tests, run against the real sharp pipeline
 pnpm typecheck
 pnpm build      # builds web, then bundles the api
-pnpm start      # production: api serves the built web app on http://127.0.0.1:8787
+pnpm start      # api serves the built web app on http://127.0.0.1:8787
 ```
 
 `PORT` and `HOST` override the API's listen address.
 
 `ALLOWED_HOSTS` in `apps/web/.env` adds comma-separated hostnames the Vite dev server accepts (see `apps/web/.env.example`).
 
-## Features
-
-- **Input:** drag and drop, click to browse, or paste from the clipboard. JPG, PNG, WebP and GIF (first frame only). Other formats sharp can decode, such as AVIF or TIFF, also compress, but the before preview needs the browser to support them. Max 50 MB.
-- **Size:** 100/75/50/25% presets, a scale ruler from 5 to 100%, and exact width/height in pixels (up to 8000) with a LOCK/FREE aspect-ratio toggle.
-- **Quality:** 1 to 100 for JPG (mozjpeg) and WebP. PNG is lossless, so the slider is disabled.
-- **Format:** JPG, WebP or PNG. Transparent areas are flattened onto white for JPG.
-- **EXIF:** STRIP (default) or KEEP. KEEP works for all three output formats. Pixels are rotated upright first and the orientation tag is reset, so the output never rotates twice.
-- **Compare:** a draggable before/after split (arrow keys work too), plus before/after sizes and the percentage saved.
-
-## API
+### API
 
 | Method | Path | Body | Response |
 | --- | --- | --- | --- |
@@ -50,7 +100,9 @@ pnpm start      # production: api serves the built web app on http://127.0.0.1:8
 | `DELETE` | `/api/images/:id` | | `204` |
 | `GET` | `/api/health` | | `{ ok: true }` |
 
-The original is uploaded once. Each settings change then sends only a small JSON body. The API keeps at most 16 originals and evicts them after 30 idle minutes. If the API restarts, the web app uploads the image again on its own.
+The original is uploaded once to the local API. Each settings change then sends only a small JSON body. The API keeps at most 16 originals in memory and evicts them after 30 idle minutes. If the API restarts, the web app uploads the image again on its own.
+
+</details>
 
 ## License
 
