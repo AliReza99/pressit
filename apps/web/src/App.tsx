@@ -115,7 +115,7 @@ export const App = () => {
           )}
           <Queue pressIt={pressIt} onPick={pick} onFiles={onFiles} />
           <div className="status" role="status" aria-live="polite">
-            {error ? <span className="status-error">{error}</span> : (notice ?? (working ? 'squeezing…' : null))}
+            {error ? <span className="status-error">{error}</span> : (notice ?? (working ? 'pressing…' : null))}
           </div>
         </div>
         <SettingsPanel pressIt={pressIt} onCropToFit={cropToFit} />

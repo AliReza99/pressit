@@ -30,6 +30,8 @@ pnpm start      # production: api serves the built web app on http://127.0.0.1:8
 
 `PORT` and `HOST` override the API's listen address.
 
+`ALLOWED_HOSTS` in `apps/web/.env` adds comma-separated hostnames the Vite dev server accepts (see `apps/web/.env.example`).
+
 ## Features
 
 - **Input:** drag and drop, click to browse, or paste from the clipboard. JPG, PNG, WebP and GIF (first frame only). Other formats sharp can decode, such as AVIF or TIFF, also compress, but the before preview needs the browser to support them. Max 50 MB.
