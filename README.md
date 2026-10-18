@@ -39,14 +39,6 @@ Your images never leave your computer.
 
 To stop PressIt, press `Ctrl+C` in the terminal. To start it again later, run `pnpm start` in the `pressit` folder.
 
-## Update
-
-```sh
-git pull
-pnpm install
-pnpm build
-```
-
 ## Use with AI assistants (MCP)
 
 Let AI assistants compress images for you. Just ask, for example *"compress the images in ~/Downloads/photos"*.
