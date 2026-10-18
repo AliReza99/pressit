@@ -5,7 +5,7 @@
 <h1 align="center">PressIt</h1>
 
 <p align="center">Make your images smaller. On your own computer, no uploads.<br>
-In your browser, or straight from your <a href="#use-it-from-your-ai-coding-assistant-mcp">AI coding assistant</a>.</p>
+In your browser, or straight from your <a href="#use-it-from-your-ai-agent-mcp">AI agent</a>.</p>
 
 <p align="center">
   <img src="docs/main.png" alt="PressIt comparing an original photo with a compressed version that is 72% smaller">
@@ -19,7 +19,7 @@ In your browser, or straight from your <a href="#use-it-from-your-ai-coding-assi
 - Drag the slider to compare before and after, and see how much space you saved.
 - Remove hidden photo data (camera, GPS location, date) or keep it.
 - Download one image or all of them.
-- **Works with your AI coding assistant:** ask Claude Code to compress the images in your project. [Set it up](#use-it-from-your-ai-coding-assistant-mcp).
+- **Works with your AI agent:** ask Claude Code to compress the images in your project. [Set it up](#use-it-from-your-ai-agent-mcp).
 
 Your images never leave your computer.
 
@@ -40,9 +40,9 @@ Your images never leave your computer.
 
 To stop PressIt, press `Ctrl+C` in the terminal. To start it again later, run `pnpm start` in the `pressit` folder.
 
-## Use it from your AI coding assistant (MCP)
+## Use it from your AI agent (MCP)
 
-Building a website or app? Ask your AI coding assistant to optimize its images, without leaving your editor. PressIt does the work on your computer.
+Building a website or app? Ask your AI agent to optimize its images, without leaving your editor. PressIt does the work on your computer.
 
 **Set up once,** while PressIt is running:
 
