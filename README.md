@@ -4,7 +4,8 @@
 
 <h1 align="center">PressIt</h1>
 
-<p align="center">Make your images smaller. On your own computer, no uploads.</p>
+<p align="center">Make your images smaller. On your own computer, no uploads.<br>
+In your browser, or straight from your <a href="#use-it-from-your-ai-coding-assistant-mcp">AI coding assistant</a>.</p>
 
 <p align="center">
   <img src="docs/main.png" alt="PressIt comparing an original photo with a compressed version that is 72% smaller">
@@ -18,7 +19,7 @@
 - Drag the slider to compare before and after, and see how much space you saved.
 - Remove hidden photo data (camera, GPS location, date) or keep it.
 - Download one image or all of them.
-- Let AI assistants like Claude Code compress images for you, through the built-in [MCP server](#use-with-ai-assistants-mcp).
+- **Works with your AI coding assistant:** ask Claude Code to compress the images in your project. [Set it up](#use-it-from-your-ai-coding-assistant-mcp).
 
 Your images never leave your computer.
 
@@ -39,19 +40,26 @@ Your images never leave your computer.
 
 To stop PressIt, press `Ctrl+C` in the terminal. To start it again later, run `pnpm start` in the `pressit` folder.
 
-## Use with AI assistants (MCP)
+## Use it from your AI coding assistant (MCP)
 
-Let AI assistants compress images for you. Just ask, for example *"compress the images in ~/Downloads/photos"*.
+Building a website or app? Ask your AI coding assistant to optimize its images, without leaving your editor. PressIt does the work on your computer.
 
-**Setup:** while PressIt is running, run this once:
+**Set up once,** while PressIt is running:
 
 ```sh
 claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp
 ```
 
-That's it. For other AI apps, add `http://127.0.0.1:8787/mcp` as an MCP server.
+Using another AI app? Add `http://127.0.0.1:8787/mcp` as an MCP server.
 
-By default, images are resized to 70% at quality 70 and saved to a `compressed` folder next to them. Your originals are never changed. You can ask for anything else, like *"convert them to WebP at 50% size"*.
+**Then just ask,** for example:
+
+- *"Compress the images in `public/images` before I deploy"*
+- *"Convert the product photos in `src/assets/products` to WebP, 1200 px wide"*
+- *"Resize `hero.jpg` to 50% and save it as `public/hero.webp`"*
+- *"Shrink the screenshots in `docs/` and save them to `docs/optimized`"*
+
+By default, images are resized to 70% at quality 70 and saved to a `compressed` folder next to them. Your originals are never changed.
 
 To turn it off, run `pnpm mcp:off` in the `pressit` folder. `pnpm mcp:on` turns it back on.
 
