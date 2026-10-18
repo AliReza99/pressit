@@ -18,6 +18,7 @@
 - Drag the slider to compare before and after, and see how much space you saved.
 - Remove hidden photo data (camera, GPS location, date) or keep it.
 - Download one image or all of them.
+- Let AI assistants like Claude Code compress images for you, through the built-in [MCP server](#use-with-ai-assistants-mcp).
 
 Your images never leave your computer.
 
@@ -52,20 +53,49 @@ pnpm build
 
 ## Use with AI assistants (MCP)
 
-While PressIt runs, it also offers tools over [MCP](https://modelcontextprotocol.io) at `http://127.0.0.1:8787/mcp`, so AI assistants like Claude Code can compress image files on your computer for you: `compress_image` for one file, and `compress_images` for a whole folder or a list of files in one go. Both take the same settings as the app, including size as a percentage (`scale`). Unless told otherwise, they shrink images to 70% size at quality 70 and keep the format, and `compress_images` saves into a `compressed` folder next to the images.
+PressIt includes an [MCP](https://modelcontextprotocol.io) server, so AI assistants can compress image files on your computer for you. Ask something like *"compress the images in ~/Downloads/photos"* and it is done in one step, with the same quality as the app.
 
-- **In this folder**, Claude Code picks it up from `.mcp.json` and asks once before using it.
-- **Everywhere else**, add it once: `claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp`
+| Tool | What it does |
+| --- | --- |
+| `compress_image` | Compresses, resizes, crops or converts one image |
+| `compress_images` | Does a whole folder, or a list of images, in one go |
 
-It is on by default. To turn it off or on, run one of these in the `pressit` folder. It takes effect right away, no restart needed:
+Unless you ask for something else, images are shrunk to 70% size at quality 70 and keep their format. `compress_images` saves them into a `compressed` folder next to the originals. You can ask for any size, quality or format, for example *"convert them to WebP at 50% size"*.
+
+### Set it up
+
+1. **Start PressIt** as described in [Install and use](#install-and-use). The MCP server runs inside PressIt at `http://127.0.0.1:8787/mcp`, so it works only while PressIt is running. It is on by default.
+
+2. **Connect your AI assistant.**
+
+   With [Claude Code](https://claude.com/claude-code), run this once to use PressIt from any folder:
+
+   ```sh
+   claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp
+   ```
+
+   Inside the `pressit` folder you can skip this: Claude Code finds the server in `.mcp.json` and asks once before using it.
+
+   Other apps that support MCP over HTTP need the same address, `http://127.0.0.1:8787/mcp`. Where to enter it depends on the app.
+
+3. **Check it works.** Start a new Claude Code session and run `/mcp`. `pressit` should be listed as connected. Then ask *"which pressit tools do you have?"*.
+
+If you started PressIt on another port with `PORT=...`, use that port in the address.
+
+### Turn it off or on
+
+Run one of these in the `pressit` folder. It takes effect right away, no restart needed:
 
 ```sh
-pnpm mcp:off
-pnpm mcp:on
-pnpm mcp:status
+pnpm mcp:off      # turn it off
+pnpm mcp:on       # turn it back on
+pnpm mcp:status   # check whether it is on
 ```
 
-It only answers requests from this computer, and never overwrites a file unless asked to.
+### Safety
+
+- It only answers requests from your own computer.
+- It never changes your original images, and never replaces an existing file unless you ask it to.
 
 ## Questions
 
@@ -111,6 +141,7 @@ pnpm start      # api serves the built web app on http://127.0.0.1:8787
 | `DELETE` | `/api/images/:id` | | `204` |
 | `POST` | `/api/compress` | multipart `file` + `options` (JSON `CompressOptions`, `width`/`height` optional) | `200` image bytes, same headers as above |
 | `GET` | `/api/health` | | `{ ok: true }` |
+| `POST` | `/mcp` | MCP over Streamable HTTP (stateless, JSON responses) | Tools `compress_image` and `compress_images`, see `apps/api/src/mcp.ts` |
 
 The original is uploaded once to the local API. Each settings change then sends only a small JSON body. The API keeps at most 16 originals in memory and evicts them after 30 idle minutes. If the API restarts, the web app uploads the image again on its own.
 
@@ -122,6 +153,8 @@ curl -sf http://127.0.0.1:8787/api/compress \
   -F 'options={"width":1600,"quality":75,"format":"webp","keepExif":false}' \
   -o photo.webp
 ```
+
+`/mcp` is served by the same process as the API but sits outside `/api`, so the Vite dev proxy never forwards it. It rejects any request whose `Host` or `Origin` is not loopback, and returns `404` while `.pressit-mcp-disabled` exists in the repo root (that is all `pnpm mcp:off` does).
 
 </details>
 
