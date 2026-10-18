@@ -19,7 +19,7 @@ In your browser, or straight from your <a href="#use-it-from-your-ai-agent-mcp">
 - Drag the slider to compare before and after, and see how much space you saved.
 - Remove hidden photo data (camera, GPS location, date) or keep it.
 - Download one image or all of them.
-- **Starts an MCP server,** so AI agents like Claude Code can compress the images in your project. [Set it up](#use-it-from-your-ai-agent-mcp).
+- Starts an MCP server, so AI agents can compress the images in your project.
 
 Your images never leave your computer.
 
@@ -42,15 +42,13 @@ To stop PressIt, press `Ctrl+C` in the terminal. To start it again later, run `p
 
 ## Use it from your AI agent (MCP)
 
-Building a website or app? Ask your AI agent to optimize its images, without leaving your editor. PressIt does the work on your computer.
+While building a website or app, ask your AI agent to optimize its images, without leaving your editor. PressIt does the work on your computer.
 
 **Set up once,** while PressIt is running:
 
 ```sh
 claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp
 ```
-
-Using another AI app? Add `http://127.0.0.1:8787/mcp` as an MCP server.
 
 **Then just ask,** for example:
 
@@ -61,7 +59,7 @@ Using another AI app? Add `http://127.0.0.1:8787/mcp` as an MCP server.
 
 By default, images are resized to 70% at quality 70 and saved to a `compressed` folder next to them. Your originals are never changed.
 
-To turn it off, run `pnpm mcp:off` in the `pressit` folder. `pnpm mcp:on` turns it back on.
+To turn the MCP server off, run `pnpm mcp:off`. `pnpm mcp:on` turns it back on.
 
 ## Questions
 
