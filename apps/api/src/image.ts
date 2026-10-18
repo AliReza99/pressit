@@ -71,11 +71,21 @@ type Size = { width: number; height: number };
 export const cropOutside = (crop: Crop | undefined, source: Size) =>
   !!crop && (crop.left + crop.width > source.width || crop.top + crop.height > source.height);
 
-/** Fills a missing side from the aspect ratio of the cropped (or whole) source. */
-const resolveSize = ({ width, height }: OneShotOptions, base: Size): Size => {
+/**
+ * Fills a missing side from the aspect ratio of the cropped (or whole) source.
+ * `scale` is a percentage like the web app's SIZE slider, used when neither
+ * side is given.
+ */
+const resolveSize = ({ width, height }: OneShotOptions, base: Size, scale?: number): Size => {
   if (width && height) return { width, height };
   if (width) return { width, height: Math.max(1, Math.round((base.height * width) / base.width)) };
   if (height) return { width: Math.max(1, Math.round((base.width * height) / base.height)), height };
+  if (scale) {
+    return {
+      width: Math.max(1, Math.round((base.width * scale) / 100)),
+      height: Math.max(1, Math.round((base.height * scale) / 100)),
+    };
+  }
   // Copy only the size: `base` may be the inspect result, whose `format` would override the requested one.
   return { width: base.width, height: base.height };
 };
@@ -91,13 +101,13 @@ export class InputError extends Error {
 }
 
 /** Inspects and compresses in one go, for callers that do not keep the source around. */
-export const compressOneShot = async (input: Buffer, options: OneShotOptions): Promise<CompressResult> => {
+export const compressOneShot = async (input: Buffer, options: OneShotOptions, scale?: number): Promise<CompressResult> => {
   const meta = await inspect(input).catch(() => {
     throw new InputError(415, 'Not a supported image');
   });
   const { crop } = options;
   if (cropOutside(crop, meta)) throw new InputError(400, 'Crop is outside the image');
-  const size = resolveSize(options, crop ?? meta);
+  const size = resolveSize(options, crop ?? meta, scale);
   if (size.width > MAX_DIMENSION || size.height > MAX_DIMENSION) {
     throw new InputError(400, `Output is larger than ${MAX_DIMENSION} px, set a smaller width or height`);
   }

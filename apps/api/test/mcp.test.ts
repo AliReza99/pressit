@@ -1,4 +1,4 @@
-import { mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -19,8 +19,8 @@ const rpc = (app: ReturnType<typeof createMcpApp>, body: unknown, headers: Recor
     body: JSON.stringify(body),
   });
 
-const callTool = async (app: ReturnType<typeof createMcpApp>, args: Record<string, unknown>) => {
-  const res = await rpc(app, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'compress_image', arguments: args } });
+const callTool = async (app: ReturnType<typeof createMcpApp>, args: Record<string, unknown>, name = 'compress_image') => {
+  const res = await rpc(app, { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } });
   expect(res.status).toBe(200);
   return ((await res.json()) as { result: ToolResult }).result;
 };
@@ -37,10 +37,67 @@ describe('mcp', () => {
 
   afterEach(() => rm(dir, { recursive: true, force: true }));
 
-  it('lists the compress tool', async () => {
+  it('lists the compress tools', async () => {
     const res = await rpc(createMcpApp({ isEnabled: () => true }), { jsonrpc: '2.0', id: 1, method: 'tools/list' });
     const { result } = (await res.json()) as { result: { tools: { name: string }[] } };
-    expect(result.tools.map(t => t.name)).toEqual(['compress_image']);
+    expect(result.tools.map(t => t.name)).toEqual(['compress_image', 'compress_images']);
+  });
+
+  it('scales by percent like the app, and rejects scale with a size', async () => {
+    const app = createMcpApp({ isEnabled: () => true });
+    const output = join(dir, 'scaled.jpg');
+    expect((await callTool(app, { inputPath: input, outputPath: output, scale: 70 })).isError).toBeFalsy();
+    const meta = await sharp(await readFile(output)).metadata();
+    expect([meta.width, meta.height]).toEqual([280, 140]);
+    const both = await callTool(app, { inputPath: input, outputPath: join(dir, 'x.jpg'), scale: 50, width: 10 });
+    expect(both.isError).toBe(true);
+  });
+
+  it('compresses a folder in one call', async () => {
+    const app = createMcpApp({ isEnabled: () => true });
+    const src = join(dir, 'src');
+    await mkdir(src);
+    const png = await sharp({ create: { width: 40, height: 20, channels: 4, background: '#00ff0080' } }).png().toBuffer();
+    await writeFile(join(src, 'a.jpg'), await readFile(input));
+    await writeFile(join(src, 'b.PNG'), png);
+    await writeFile(join(src, 'c.gif'), await sharp(png).gif().toBuffer());
+    await writeFile(join(src, 'notes.txt'), 'skip me');
+    await mkdir(join(src, 'nested'));
+
+    const out = join(dir, 'out');
+    const result = await callTool(app, { inputDir: src, outputDir: out, scale: 50 }, 'compress_images');
+    expect(result.isError).toBeFalsy();
+    expect(result.content[0]?.text).toMatch(/^Compressed 3 of 3 images/);
+    expect((await readdir(out)).sort()).toEqual(['a.jpg', 'b.PNG', 'c.png']);
+    const meta = await sharp(await readFile(join(out, 'a.jpg'))).metadata();
+    expect([meta.format, meta.width]).toEqual(['jpeg', 200]);
+    expect((await sharp(await readFile(join(out, 'c.png'))).metadata()).format).toBe('png');
+  });
+
+  it('converts a list of files and reports clashes and failures per file', async () => {
+    const app = createMcpApp({ isEnabled: () => true });
+    const twin = join(dir, 'in.png');
+    await writeFile(twin, await sharp(await readFile(input)).png().toBuffer());
+    const out = join(dir, 'out');
+    const args = { inputPaths: [input, twin, join(dir, 'missing.jpg')], outputDir: out, format: 'webp' };
+    const result = await callTool(app, args, 'compress_images');
+    expect(result.isError).toBeFalsy();
+    const report = result.content[0]?.text ?? '';
+    expect(report).toMatch(/^Compressed 1 of 3 images/);
+    expect(report).toContain('in.png: skipped, another image in this batch already writes in.webp');
+    expect(report).toContain('missing.jpg: failed');
+    expect(await readdir(out)).toEqual(['in.webp']);
+  });
+
+  it('rejects unclear batch inputs and writing over the originals', async () => {
+    const app = createMcpApp({ isEnabled: () => true });
+    const neither = await callTool(app, { outputDir: dir }, 'compress_images');
+    expect(neither.isError).toBe(true);
+    const both = await callTool(app, { inputDir: dir, inputPaths: [input], outputDir: join(dir, 'o') }, 'compress_images');
+    expect(both.isError).toBe(true);
+    const inPlace = await callTool(app, { inputDir: dir, outputDir: dir, overwrite: true }, 'compress_images');
+    expect(inPlace.isError).toBe(true);
+    expect(inPlace.content[0]?.text).toContain('Output would replace the original');
   });
 
   it('compresses a file to disk, taking the format from the extension', async () => {

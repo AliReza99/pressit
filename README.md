@@ -52,7 +52,7 @@ pnpm build
 
 ## Use with AI assistants (MCP)
 
-While PressIt runs, it also offers a `compress_image` tool over [MCP](https://modelcontextprotocol.io) at `http://127.0.0.1:8787/mcp`, so AI assistants like Claude Code can compress image files on your computer for you.
+While PressIt runs, it also offers tools over [MCP](https://modelcontextprotocol.io) at `http://127.0.0.1:8787/mcp`, so AI assistants like Claude Code can compress image files on your computer for you: `compress_image` for one file, and `compress_images` for a whole folder or a list of files in one go. Both take the same settings as the app, including size as a percentage (`scale`).
 
 - **In this folder**, Claude Code picks it up from `.mcp.json` and asks once before using it.
 - **Everywhere else**, add it once: `claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp`
