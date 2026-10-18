@@ -95,6 +95,21 @@ describe('mcp', () => {
     expect(await readdir(out)).toEqual(['in.webp']);
   });
 
+  it('writes next to the images by default and keeps the report short', async () => {
+    const app = createMcpApp({ isEnabled: () => true });
+    // A tiny PNG grows when re-saved, so it is the only line in the short report.
+    await writeFile(join(dir, 'tiny.png'), await sharp({ create: { width: 2, height: 2, channels: 3, background: '#fff' } }).png().toBuffer());
+
+    const short = await callTool(app, { inputDir: dir, scale: 100 }, 'compress_images');
+    const lines = (short.content[0]?.text ?? '').split('\n');
+    expect(lines[0]).toMatch(new RegExp(`^Compressed 2 of 2 images into ${join(dir, 'compressed')}: `));
+    expect(lines.slice(1).filter(Boolean)).toEqual([expect.stringMatching(/^tiny\.png → tiny\.png: .*larger\)$/)]);
+    expect((await readdir(join(dir, 'compressed'))).sort()).toEqual(['in.jpg', 'tiny.png']);
+
+    const full = await callTool(app, { inputDir: dir, outputDir: join(dir, 'all'), details: true }, 'compress_images');
+    expect(full.content[0]?.text).toContain('in.jpg → in.jpg: 280×140 jpeg');
+  });
+
   it('rejects unclear batch inputs and writing over the originals', async () => {
     const app = createMcpApp({ isEnabled: () => true });
     const neither = await callTool(app, { outputDir: dir }, 'compress_images');

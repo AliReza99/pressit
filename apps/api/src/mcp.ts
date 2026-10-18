@@ -62,6 +62,7 @@ const MAX_BATCH = 500;
 /** Used when the caller does not say otherwise. Size defaults only when scale, width and height are all missing. */
 const DEFAULT_SCALE = 70;
 const DEFAULT_QUALITY = 70;
+const DEFAULT_OUTPUT_DIR = 'compressed';
 
 const absolutePath = z.string().refine(isAbsolute, 'Must be an absolute path');
 
@@ -96,9 +97,15 @@ const batchInput = {
     .optional()
     .describe('Absolute path of a folder. Its JPG, PNG, WebP and GIF files are compressed, subfolders are not. Use this or inputPaths'),
   inputPaths: z.array(absolutePath).min(1).max(MAX_BATCH).optional().describe('Absolute paths of the images. Use this or inputDir'),
-  outputDir: absolutePath.describe('Absolute path of the folder to write results to, under the same file names. Created if missing'),
+  outputDir: absolutePath
+    .optional()
+    .describe(
+      `Absolute path of the folder to write results to, under the same file names. Created if missing. ` +
+        `Defaults to a "${DEFAULT_OUTPUT_DIR}" folder next to each image`,
+    ),
   format: outputFormatSchema.optional().describe('Output format for every image. Defaults to each image\'s own format, GIF becomes PNG'),
   ...settingsInput,
+  details: z.boolean().default(false).describe('List every image in the result, not only the ones that failed or got larger'),
 };
 
 type Settings = {
@@ -202,12 +209,14 @@ const createMcpServer = () => {
     {
       title: 'Compress images',
       description:
-        'Compress, resize or convert many image files on this computer with PressIt in one call, from a folder or a list of paths, writing each result to outputDir. ' +
-        `By default images are scaled to ${DEFAULT_SCALE}% at quality ${DEFAULT_QUALITY}, keeping their format; format "webp" usually saves more.`,
+        'Compress, resize or convert many image files on this computer with PressIt in one call, from a folder or a list of paths. ' +
+        `By default images are scaled to ${DEFAULT_SCALE}% at quality ${DEFAULT_QUALITY}, keep their format, and are written to a "${DEFAULT_OUTPUT_DIR}" folder next to them; format "webp" usually saves more. ` +
+        'No need to list, measure or check the files first: pass the folder as inputDir. Existing files are never replaced unless overwrite is set, ' +
+        'and the result gives the total size before and after, plus any image that failed or got larger.',
       inputSchema: batchInput,
       annotations,
     },
-    async ({ inputDir, inputPaths, outputDir, format, ...settings }) => {
+    async ({ inputDir, inputPaths, outputDir, format, details, ...settings }) => {
       if (!inputDir === !inputPaths) return fail('Give inputDir or inputPaths, not both');
       const conflict = sizeConflict(settings);
       if (conflict) return fail(conflict);
@@ -223,13 +232,14 @@ const createMcpServer = () => {
 
       const lines: string[] = [];
       const taken = new Set<string>();
+      const written = new Set<string>();
       let done = 0;
       let before = 0;
       let after = 0;
       // One at a time: sharp already uses every core for each image.
       for (const inputPath of inputs) {
         const fileFormat = format ?? FORMAT_BY_EXTENSION[extname(inputPath).toLowerCase()] ?? 'png';
-        const outputPath = join(outputDir, outputNameFor(inputPath, fileFormat));
+        const outputPath = join(outputDir ?? join(dirname(inputPath), DEFAULT_OUTPUT_DIR), outputNameFor(inputPath, fileFormat));
         const name = basename(inputPath);
         if (taken.has(outputPath)) {
           lines.push(`${name}: skipped, another image in this batch already writes ${basename(outputPath)}`);
@@ -245,16 +255,19 @@ const createMcpServer = () => {
         done++;
         before += result.before;
         after += result.after;
-        lines.push(`${name} → ${basename(outputPath)}: ${result.text}`);
+        written.add(dirname(outputPath));
+        // Keep the reply short: by default only list what needs attention.
+        if (details || result.after > result.before) lines.push(`${name} → ${basename(outputPath)}: ${result.text}`);
       }
 
       const failed = inputs.length - done;
+      const where = written.size === 1 ? [...written][0] : `${written.size} folders`;
       const summary =
         done === 0
           ? `No images were compressed (${failed} failed).`
-          : `Compressed ${done} of ${inputs.length} images into ${outputDir}: ${formatBytes(before)} → ${formatBytes(after)} (${describeChange(before, after)})` +
+          : `Compressed ${done} of ${inputs.length} images into ${where}: ${formatBytes(before)} → ${formatBytes(after)} (${describeChange(before, after)})` +
             (failed ? `, ${failed} failed.` : '.');
-      const report = [summary, '', ...lines].join('\n');
+      const report = lines.length ? [summary, '', ...lines].join('\n') : summary;
       return done === 0 ? fail(report) : text(report);
     },
   );
