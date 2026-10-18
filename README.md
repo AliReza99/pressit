@@ -53,49 +53,19 @@ pnpm build
 
 ## Use with AI assistants (MCP)
 
-PressIt includes an [MCP](https://modelcontextprotocol.io) server, so AI assistants can compress image files on your computer for you. Ask something like *"compress the images in ~/Downloads/photos"* and it is done in one step, with the same quality as the app.
+Let AI assistants compress images for you. Just ask, for example *"compress the images in ~/Downloads/photos"*.
 
-| Tool | What it does |
-| --- | --- |
-| `compress_image` | Compresses, resizes, crops or converts one image |
-| `compress_images` | Does a whole folder, or a list of images, in one go |
-
-Unless you ask for something else, images are shrunk to 70% size at quality 70 and keep their format. `compress_images` saves them into a `compressed` folder next to the originals. You can ask for any size, quality or format, for example *"convert them to WebP at 50% size"*.
-
-### Set it up
-
-1. **Start PressIt** as described in [Install and use](#install-and-use). The MCP server runs inside PressIt at `http://127.0.0.1:8787/mcp`, so it works only while PressIt is running. It is on by default.
-
-2. **Connect your AI assistant.**
-
-   With [Claude Code](https://claude.com/claude-code), run this once to use PressIt from any folder:
-
-   ```sh
-   claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp
-   ```
-
-   Inside the `pressit` folder you can skip this: Claude Code finds the server in `.mcp.json` and asks once before using it.
-
-   Other apps that support MCP over HTTP need the same address, `http://127.0.0.1:8787/mcp`. Where to enter it depends on the app.
-
-3. **Check it works.** Start a new Claude Code session and run `/mcp`. `pressit` should be listed as connected. Then ask *"which pressit tools do you have?"*.
-
-If you started PressIt on another port with `PORT=...`, use that port in the address.
-
-### Turn it off or on
-
-Run one of these in the `pressit` folder. It takes effect right away, no restart needed:
+**Setup:** while PressIt is running, run this once:
 
 ```sh
-pnpm mcp:off      # turn it off
-pnpm mcp:on       # turn it back on
-pnpm mcp:status   # check whether it is on
+claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp
 ```
 
-### Safety
+That's it. For other AI apps, add `http://127.0.0.1:8787/mcp` as an MCP server.
 
-- It only answers requests from your own computer.
-- It never changes your original images, and never replaces an existing file unless you ask it to.
+By default, images are resized to 70% at quality 70 and saved to a `compressed` folder next to them. Your originals are never changed. You can ask for anything else, like *"convert them to WebP at 50% size"*.
+
+To turn it off, run `pnpm mcp:off` in the `pressit` folder. `pnpm mcp:on` turns it back on.
 
 ## Questions
 
