@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { compressOptionsSchema } from './schema.js';
+import type { compressOptionsSchema, oneShotOptionsSchema } from './schema.js';
 
 export const MAX_DIMENSION = 8000;
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -9,6 +9,7 @@ export type OutputFormat = (typeof OUTPUT_FORMATS)[number];
 
 export type CompressOptions = z.infer<typeof compressOptionsSchema>;
 export type Crop = NonNullable<CompressOptions['crop']>;
+export type OneShotOptions = z.infer<typeof oneShotOptionsSchema>;
 
 /** Returned by `POST /api/images` after the source is stored. */
 export type SourceInfo = {
@@ -27,7 +28,7 @@ export type ApiError = {
   error: string;
 };
 
-/** Response headers set by `POST /api/images/:id/compress`. */
+/** Response headers set by `POST /api/images/:id/compress` and `POST /api/compress`. */
 export const OUTPUT_HEADERS = {
   width: 'x-output-width',
   height: 'x-output-height',

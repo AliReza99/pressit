@@ -92,9 +92,19 @@ pnpm start      # api serves the built web app on http://127.0.0.1:8787
 | `POST` | `/api/images` | multipart `file` | `201` `SourceInfo` (id, oriented width/height, EXIF size) |
 | `POST` | `/api/images/:id/compress` | JSON `CompressOptions` | `200` image bytes, with `x-output-width`, `x-output-height`, `x-exif-kept` headers |
 | `DELETE` | `/api/images/:id` | | `204` |
+| `POST` | `/api/compress` | multipart `file` + `options` (JSON `CompressOptions`, `width`/`height` optional) | `200` image bytes, same headers as above |
 | `GET` | `/api/health` | | `{ ok: true }` |
 
 The original is uploaded once to the local API. Each settings change then sends only a small JSON body. The API keeps at most 16 originals in memory and evicts them after 30 idle minutes. If the API restarts, the web app uploads the image again on its own.
+
+For scripts and batch jobs, `POST /api/compress` does it in one request and stores nothing. A missing `width` or `height` is scaled to keep the aspect ratio, and with both missing the image keeps its size:
+
+```sh
+curl -sf http://127.0.0.1:8787/api/compress \
+  -F file=@photo.jpg \
+  -F 'options={"width":1600,"quality":75,"format":"webp","keepExif":false}' \
+  -o photo.webp
+```
 
 </details>
 

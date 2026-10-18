@@ -20,3 +20,9 @@ export const compressOptionsSchema = z.object({
   keepExif: z.boolean(),
   crop: cropSchema.optional(),
 });
+
+/**
+ * Options for the single-step `POST /api/compress`. A missing width or height
+ * is scaled to keep the aspect ratio, and with both missing the size is kept.
+ */
+export const oneShotOptionsSchema = compressOptionsSchema.partial({ width: true, height: true });

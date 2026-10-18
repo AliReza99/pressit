@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import sharp from 'sharp';
-import { OUTPUT_HEADERS, type CompressOptions, type SourceInfo } from '@pressit/shared';
+import { OUTPUT_HEADERS, type CompressOptions, type OneShotOptions, type SourceInfo } from '@pressit/shared';
 import { createApp } from '../src/app.js';
 import { createSourceStore } from '../src/store.js';
 
@@ -29,6 +29,13 @@ const compressReq = (app: ReturnType<typeof createApp>, id: string, options: Com
     headers: { 'content-type': 'application/json' },
     body: JSON.stringify(options),
   });
+
+const oneShot = (app: ReturnType<typeof createApp>, data: Buffer, options: OneShotOptions | string) => {
+  const form = new FormData();
+  form.append('file', new File([new Uint8Array(data)], 'p.jpg', { type: 'image/jpeg' }));
+  form.append('options', typeof options === 'string' ? options : JSON.stringify(options));
+  return app.request('/api/compress', { method: 'POST', body: form });
+};
 
 describe('api', () => {
   it('reports oriented dimensions and EXIF size on upload', async () => {
@@ -125,6 +132,47 @@ describe('api', () => {
     expect(bad.status).toBe(400);
     const missing = await compressReq(app, crypto.randomUUID(), { width: 10, height: 10, quality: 50, format: 'png', keepExif: false });
     expect(missing.status).toBe(404);
+  });
+
+  it('compresses in one step without storing the source', async () => {
+    const store = createSourceStore({ maxEntries: 16, ttlMs: 60_000 });
+    const app = createApp({ store });
+    const res = await oneShot(app, await rotatedJpeg(), { width: 100, height: 50, quality: 70, format: 'webp', keepExif: false });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('image/webp');
+    const meta = await sharp(Buffer.from(await res.arrayBuffer())).metadata();
+    expect([meta.format, meta.width, meta.height]).toEqual(['webp', 100, 50]);
+    expect(store.size).toBe(0);
+  });
+
+  it('fills a missing side from the upright aspect ratio', async () => {
+    const app = createApp();
+    const res = await oneShot(app, await rotatedJpeg(), { width: 100, quality: 70, format: 'jpeg', keepExif: false });
+    expect([res.headers.get(OUTPUT_HEADERS.width), res.headers.get(OUTPUT_HEADERS.height)]).toEqual(['100', '200']);
+
+    const kept = await oneShot(app, await rotatedJpeg(), { quality: 70, format: 'jpeg', keepExif: true });
+    expect([kept.headers.get(OUTPUT_HEADERS.width), kept.headers.get(OUTPUT_HEADERS.height)]).toEqual(['200', '400']);
+    expect(kept.headers.get(OUTPUT_HEADERS.exifKept)).toBe('true');
+
+    const cropped = await oneShot(app, await rotatedJpeg(), {
+      height: 50,
+      quality: 70,
+      format: 'png',
+      keepExif: false,
+      crop: { left: 0, top: 0, width: 200, height: 100 },
+    });
+    expect([cropped.headers.get(OUTPUT_HEADERS.width), cropped.headers.get(OUTPUT_HEADERS.height)]).toEqual(['100', '50']);
+  });
+
+  it('rejects bad one-step requests', async () => {
+    const app = createApp();
+    expect((await oneShot(app, await plainPng(), '{not json')).status).toBe(400);
+    expect((await oneShot(app, await plainPng(), { quality: 500, format: 'png', keepExif: false })).status).toBe(400);
+    expect((await oneShot(app, Buffer.from('nope'), { quality: 50, format: 'png', keepExif: false })).status).toBe(415);
+    const crop = { left: 40, top: 0, width: 30, height: 10 };
+    expect((await oneShot(app, await plainPng(), { quality: 50, format: 'png', keepExif: false, crop })).status).toBe(400);
+    const huge = await oneShot(app, await plainPng(), { height: 8000, quality: 50, format: 'png', keepExif: false });
+    expect(huge.status).toBe(400);
   });
 
   it('evicts the least recently used source', () => {
