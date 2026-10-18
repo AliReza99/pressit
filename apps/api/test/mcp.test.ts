@@ -43,12 +43,18 @@ describe('mcp', () => {
     expect(result.tools.map(t => t.name)).toEqual(['compress_image', 'compress_images']);
   });
 
-  it('scales by percent like the app, and rejects scale with a size', async () => {
+  it('scales to 70% by default, by percent when asked, and rejects scale with a size', async () => {
     const app = createMcpApp({ isEnabled: () => true });
-    const output = join(dir, 'scaled.jpg');
-    expect((await callTool(app, { inputPath: input, outputPath: output, scale: 70 })).isError).toBeFalsy();
-    const meta = await sharp(await readFile(output)).metadata();
-    expect([meta.width, meta.height]).toEqual([280, 140]);
+    const sizeOf = async (args: Record<string, unknown>, name: string) => {
+      const output = join(dir, name);
+      expect((await callTool(app, { inputPath: input, outputPath: output, ...args })).isError).toBeFalsy();
+      const meta = await sharp(await readFile(output)).metadata();
+      return [meta.width, meta.height];
+    };
+    expect(await sizeOf({}, 'default.jpg')).toEqual([280, 140]);
+    expect(await sizeOf({ scale: 25 }, 'quarter.jpg')).toEqual([100, 50]);
+    expect(await sizeOf({ scale: 100 }, 'full.jpg')).toEqual([400, 200]);
+    expect(await sizeOf({ height: 50 }, 'height.jpg')).toEqual([100, 50]);
     const both = await callTool(app, { inputPath: input, outputPath: join(dir, 'x.jpg'), scale: 50, width: 10 });
     expect(both.isError).toBe(true);
   });

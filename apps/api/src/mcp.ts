@@ -59,17 +59,24 @@ const IMAGE_EXTENSIONS = new Set([...Object.keys(FORMAT_BY_EXTENSION), '.gif']);
 
 const MAX_BATCH = 500;
 
+/** Used when the caller does not say otherwise. Size defaults only when scale, width and height are all missing. */
+const DEFAULT_SCALE = 70;
+const DEFAULT_QUALITY = 70;
+
 const absolutePath = z.string().refine(isAbsolute, 'Must be an absolute path');
 
 const settingsInput = {
-  quality: z.number().int().min(1).max(100).default(75).describe('1-100, ignored for PNG'),
+  quality: z.number().int().min(1).max(100).default(DEFAULT_QUALITY).describe(`1-100, ignored for PNG. Defaults to ${DEFAULT_QUALITY}`),
   scale: z
     .number()
     .int()
     .min(5)
     .max(100)
     .optional()
-    .describe('Size in percent of the original (or crop), like the SIZE slider in the PressIt app. Use instead of width/height'),
+    .describe(
+      `Size in percent of the original (or crop), like the SIZE slider in the PressIt app. Use instead of width/height. ` +
+        `Defaults to ${DEFAULT_SCALE} when width and height are not given; pass 100 to keep the original size`,
+    ),
   width: z.number().int().min(1).max(MAX_DIMENSION).optional().describe('Output width in px. Alone, keeps the aspect ratio'),
   height: z.number().int().min(1).max(MAX_DIMENSION).optional().describe('Output height in px. Alone, keeps the aspect ratio'),
   keepExif: z.boolean().default(false).describe('Keep camera, GPS and date metadata'),
@@ -129,7 +136,8 @@ const compressFile = async (
   if (statErr || !info.isFile()) return { ok: false, text: `Cannot read ${inputPath}` };
   if (info.size > MAX_UPLOAD_BYTES) return { ok: false, text: 'File is larger than 50 MB' };
 
-  const [err, result] = await to(compressOneShot(await readFile(inputPath), { ...options, format }, scale));
+  const sized = scale ?? (options.width || options.height ? undefined : DEFAULT_SCALE);
+  const [err, result] = await to(compressOneShot(await readFile(inputPath), { ...options, format }, sized));
   if (err) return { ok: false, text: err instanceof InputError ? err.message : 'Compression failed' };
 
   await mkdir(dirname(outputPath), { recursive: true });
@@ -173,7 +181,8 @@ const createMcpServer = () => {
     {
       title: 'Compress image',
       description:
-        'Compress, resize, crop or convert one image file on this computer with PressIt, and save the result to outputPath. For several images use compress_images.',
+        'Compress, resize, crop or convert one image file on this computer with PressIt, and save the result to outputPath. ' +
+        `By default it is scaled to ${DEFAULT_SCALE}% at quality ${DEFAULT_QUALITY}. For several images use compress_images.`,
       inputSchema: compressInput,
       annotations,
     },
@@ -194,7 +203,7 @@ const createMcpServer = () => {
       title: 'Compress images',
       description:
         'Compress, resize or convert many image files on this computer with PressIt in one call, from a folder or a list of paths, writing each result to outputDir. ' +
-        'Re-saving a JPEG at its own size and similar quality rarely saves much; scale or format "webp" usually do.',
+        `By default images are scaled to ${DEFAULT_SCALE}% at quality ${DEFAULT_QUALITY}, keeping their format; format "webp" usually saves more.`,
       inputSchema: batchInput,
       annotations,
     },
