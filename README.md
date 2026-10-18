@@ -19,7 +19,7 @@ In your browser, or straight from your <a href="#use-it-from-your-ai-agent-mcp">
 - Drag the slider to compare before and after, and see how much space you saved.
 - Remove hidden photo data (camera, GPS location, date) or keep it.
 - Download one image or all of them.
-- **Works with your AI agent:** ask Claude Code to compress the images in your project. [Set it up](#use-it-from-your-ai-agent-mcp).
+- **Starts an MCP server,** so AI agents like Claude Code can compress the images in your project. [Set it up](#use-it-from-your-ai-agent-mcp).
 
 Your images never leave your computer.
 
