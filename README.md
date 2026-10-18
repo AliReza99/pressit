@@ -8,7 +8,7 @@
 In your browser, or straight from your <a href="#use-it-from-your-ai-agent-mcp">AI agent</a>.</p>
 
 <p align="center">
-  <img src="docs/main.png" alt="PressIt comparing an original photo with a compressed version that is 72% smaller">
+  <img src="docs/main.jpg" alt="PressIt comparing an original photo with a compressed version that is 66% smaller">
 </p>
 
 ## What it does
