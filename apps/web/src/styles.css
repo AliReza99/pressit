@@ -472,6 +472,11 @@ button {
   cursor: nesw-resize;
 }
 
+/* The handle the arrow keys resize. */
+.crop-handle[data-active='true'] {
+  background: var(--paper);
+}
+
 .crop-box-size {
   position: absolute;
   top: calc(100% + 6px);

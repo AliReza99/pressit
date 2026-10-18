@@ -80,6 +80,36 @@ export const resizeRect = (start: Rect, handle: Handle, dx: number, dy: number, 
   };
 };
 
+/**
+ * Rounds to whole source pixels the way `toCrop` does, so each keyboard step
+ * changes the shown size by exactly one pixel.
+ */
+const snapRect = ({ left, top, width, height }: Rect): Rect => ({
+  left: Math.round(left),
+  top: Math.round(top),
+  width: Math.round(width),
+  height: Math.round(height),
+});
+
+/**
+ * Moves one handle by (dx, dy) whole source pixels from the arrow keys.
+ * Arrows across the handle's axis do nothing, so an `n` handle ignores
+ * left/right. A corner locked to a ratio follows whichever arrow was pressed.
+ */
+export const nudgeHandle = (rect: Rect, handle: Handle, dx: number, dy: number, imageW: number, imageH: number, min: number, ratio: number | null): Rect => {
+  const sx = handle.x ? dx : 0;
+  const sy = handle.y ? dy : 0;
+  if (!sx && !sy) return rect;
+  const start = snapRect(rect);
+  if (ratio !== null && handle.x && handle.y) {
+    // resizeRect takes the larger of the two axes, so move the other one in step.
+    return sx
+      ? resizeRect(start, handle, sx, (handle.x * sx) / (handle.y * ratio), imageW, imageH, min, ratio)
+      : resizeRect(start, handle, (handle.y * sy * ratio) / handle.x, sy, imageW, imageH, min, ratio);
+  }
+  return resizeRect(start, handle, sx, sy, imageW, imageH, min, ratio);
+};
+
 /** Whole-pixel crop for the API, null when it keeps the entire image. */
 export const toCrop = (rect: Rect, imageW: number, imageH: number): Crop | null => {
   const left = clamp(Math.round(rect.left), 0, imageW - 1);

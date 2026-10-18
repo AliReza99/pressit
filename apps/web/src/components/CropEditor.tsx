@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import type { Crop } from '@pressit/shared';
-import { fullRect, moveRect, resizeRect, toCrop, withAspect, type Handle, type Rect } from '../lib/crop';
+import { fullRect, moveRect, nudgeHandle, resizeRect, toCrop, withAspect, type Handle, type Rect } from '../lib/crop';
 import { Segmented } from './Segmented';
 
 type Mode = 'free' | 'original' | 'square' | 'custom';
@@ -57,6 +57,8 @@ export const CropEditor = ({ url, width, height, initial, aspect, onApply, onCan
   const [mode, setMode] = useState<Mode>(aspect ? 'custom' : 'free');
   const [ratioW, setRatioW] = useState(aspect ? String(aspect.w) : '');
   const [ratioH, setRatioH] = useState(aspect ? String(aspect.h) : '');
+  // The last clicked handle, which the arrow keys then resize. Null moves the whole box.
+  const [activeHandle, setActiveHandle] = useState<string | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ handle: Handle | null; x: number; y: number; start: Rect; scale: number } | null>(null);
   // Ratio changes reshape the rect as it was before they began, so typing "200"
@@ -101,6 +103,7 @@ export const CropEditor = ({ url, width, height, initial, aspect, onApply, onCan
     const target = e.target as HTMLElement;
     const handle = target.dataset.handle ? (HANDLES[target.dataset.handle] ?? null) : null;
     if (!handle && !target.closest('.crop-box')) return;
+    setActiveHandle(handle ? target.dataset.handle! : null);
     const r = e.currentTarget.getBoundingClientRect();
     shapeBase.current = null;
     drag.current = { handle, x: e.clientX, y: e.clientY, start: rect, scale: width / r.width };
@@ -122,10 +125,18 @@ export const CropEditor = ({ url, width, height, initial, aspect, onApply, onCan
   const onFrameKeyDown = (e: KeyboardEvent<HTMLDivElement>) => {
     const step = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
     if (!step) return;
-    // One screen pixel per press, ten with Shift. Also keeps arrows from switching queue images.
-    const px = ((e.shiftKey ? 10 : 1) * width) / e.currentTarget.getBoundingClientRect().width;
+    const scale = width / e.currentTarget.getBoundingClientRect().width;
+    const n = e.shiftKey ? 10 : 1;
     shapeBase.current = null;
-    setRect(prev => moveRect(prev, step[0]! * px, step[1]! * px, width, height));
+    const handle = activeHandle ? HANDLES[activeHandle] : undefined;
+    if (handle) {
+      // A selected handle moves its edge by whole image pixels, ten with Shift.
+      setRect(prev => nudgeHandle(prev, handle, step[0]! * n, step[1]! * n, width, height, MIN_SCREEN_PX * scale, ratio));
+    } else {
+      // The box moves one screen pixel per press, ten with Shift.
+      setRect(prev => moveRect(prev, step[0]! * n * scale, step[1]! * n * scale, width, height));
+    }
+    // Also keeps arrows from switching queue images.
     e.preventDefault();
   };
 
@@ -162,6 +173,7 @@ export const CropEditor = ({ url, width, height, initial, aspect, onApply, onCan
               onClick={() => {
                 setRect(fullRect(width, height));
                 setMode('free');
+                setActiveHandle(null);
                 shapeBase.current = null;
               }}
             >
@@ -181,7 +193,7 @@ export const CropEditor = ({ url, width, height, initial, aspect, onApply, onCan
           style={{ maxWidth: maxW, aspectRatio: `${width} / ${height}`, marginBottom: '5cqh' }}
           tabIndex={0}
           role="group"
-          aria-label="Crop area, arrows move it"
+          aria-label="Crop area, arrows move it or resize the selected handle"
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={() => (drag.current = null)}
@@ -194,14 +206,14 @@ export const CropEditor = ({ url, width, height, initial, aspect, onApply, onCan
             style={{ left: pct(rect.left, width), top: pct(rect.top, height), width: pct(rect.width, width), height: pct(rect.height, height) }}
           >
             {Object.keys(HANDLES).map(name => (
-              <div key={name} className="crop-handle" data-handle={name} />
+              <div key={name} className="crop-handle" data-handle={name} data-active={name === activeHandle} />
             ))}
             <span className="crop-box-size">{size}</span>
           </div>
         </div>
       </div>
       <div className="caption">
-        <span>drag the box or its handles to crop</span>
+        <span>drag the box or its handles · click a handle, then arrows nudge it 1 px</span>
         <span>enter apply · esc cancel</span>
       </div>
     </div>
