@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import type { Item, PressIt } from '../hooks/usePressIt';
+import { formatBytes } from '../lib/format';
 import { useDragOver } from './DropZone';
 
 const savedLabel = ({ info, output, working, error }: Item) => {
@@ -8,6 +9,8 @@ const savedLabel = ({ info, output, working, error }: Item) => {
   const saved = Math.round((1 - output.blob.size / info.size) * 100);
   return saved < 0 ? `+${-saved}%` : `-${saved}%`;
 };
+
+const outputSize = ({ output, working, error }: Item) => (output && !working && !error ? formatBytes(output.blob.size) : '');
 
 export const Queue = ({ pressIt, onPick, onFiles }: { pressIt: PressIt; onPick: () => void; onFiles: (files: File[]) => void }) => {
   const { items, activeKey } = pressIt;
@@ -31,7 +34,10 @@ export const Queue = ({ pressIt, onPick, onFiles }: { pressIt: PressIt; onPick: 
           <li key={item.key} className="queue-item" data-active={item.key === activeKey} data-failed={item.error !== null}>
             <button type="button" className="queue-pick" aria-pressed={item.key === activeKey} title={item.file.name} onClick={() => pressIt.select(item.key)}>
               <img src={item.url} alt="" draggable={false} />
-              <span className="queue-label">{savedLabel(item)}</span>
+              <span className="queue-label">
+                <span>{savedLabel(item)}</span>
+                <span>{outputSize(item)}</span>
+              </span>
             </button>
             <button type="button" className="queue-remove" aria-label={`Remove ${item.file.name}`} onClick={() => pressIt.remove(item.key)}>
               ×
