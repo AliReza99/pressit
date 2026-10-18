@@ -39,10 +39,6 @@ Your images never leave your computer.
 
 To stop PressIt, press `Ctrl+C` in the terminal. To start it again later, run `pnpm start` in the `pressit` folder.
 
-<p align="center">
-  <img src="docs/crop.png" alt="Cropping a photo in PressIt">
-</p>
-
 ## Update
 
 ```sh
