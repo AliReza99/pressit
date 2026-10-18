@@ -6,16 +6,14 @@ import { z } from 'zod';
 import { to } from 'await-to-js';
 import { compressOptionsSchema, oneShotOptionsSchema } from '@pressit/shared/schema';
 import {
-  MAX_DIMENSION,
   MAX_UPLOAD_BYTES,
   OUTPUT_HEADERS,
   type ApiError,
-  type Crop,
   type OneShotOptions,
   type OutputFormat,
   type SourceInfo,
 } from '@pressit/shared';
-import { compress, inspect, type CompressResult } from './image.js';
+import { compress, compressOneShot, cropOutside, inspect, InputError, type CompressResult } from './image.js';
 import { createSourceStore, type SourceStore } from './store.js';
 
 const MIME: Record<string, string> = {
@@ -37,11 +35,6 @@ const uploadLimit = () =>
     onError: c => c.json<ApiError>({ error: 'File is larger than 50 MB' }, 413),
   });
 
-type Size = { width: number; height: number };
-
-const cropOutside = (crop: Crop | undefined, source: Size) =>
-  !!crop && (crop.left + crop.width > source.width || crop.top + crop.height > source.height);
-
 const parseOneShotOptions = (raw: string): OneShotOptions | undefined => {
   let json: unknown;
   try {
@@ -51,14 +44,6 @@ const parseOneShotOptions = (raw: string): OneShotOptions | undefined => {
   }
   const result = oneShotOptionsSchema.safeParse(json);
   return result.success ? result.data : undefined;
-};
-
-/** Fills a missing side from the aspect ratio of the cropped (or whole) source. */
-const resolveSize = ({ width, height }: OneShotOptions, base: Size): Size => {
-  if (width && height) return { width, height };
-  if (width) return { width, height: Math.max(1, Math.round((base.height * width) / base.width)) };
-  if (height) return { width: Math.max(1, Math.round((base.width * height) / base.height)), height };
-  return base;
 };
 
 const imageResponse = (c: Context, format: OutputFormat, result: CompressResult) =>
@@ -115,18 +100,8 @@ export const createApp = ({ store = createSourceStore({ maxEntries: 16, ttlMs: 3
       const options = parseOneShotOptions(raw);
       if (!options) return c.json<ApiError>({ error: 'Invalid request' }, 400);
 
-      const buffer = Buffer.from(await file.arrayBuffer());
-      const [inspectErr, meta] = await to(inspect(buffer));
-      if (inspectErr) return c.json<ApiError>({ error: 'Not a supported image' }, 415);
-
-      const { crop } = options;
-      if (cropOutside(crop, meta)) return c.json<ApiError>({ error: 'Crop is outside the image' }, 400);
-      const size = resolveSize(options, crop ?? meta);
-      if (size.width > MAX_DIMENSION || size.height > MAX_DIMENSION) {
-        return c.json<ApiError>({ error: `Output is larger than ${MAX_DIMENSION} px, set a smaller width or height` }, 400);
-      }
-
-      const [err, result] = await to(compress(buffer, { ...options, ...size }, meta.exifBytes > 0));
+      const [err, result] = await to(compressOneShot(Buffer.from(await file.arrayBuffer()), options));
+      if (err instanceof InputError) return c.json<ApiError>({ error: err.message }, err.status);
       if (err) return c.json<ApiError>({ error: 'Compression failed' }, 422);
 
       return imageResponse(c, options.format, result);

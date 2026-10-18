@@ -164,6 +164,12 @@ describe('api', () => {
     expect([cropped.headers.get(OUTPUT_HEADERS.width), cropped.headers.get(OUTPUT_HEADERS.height)]).toEqual(['100', '50']);
   });
 
+  it('converts the format when the size is kept', async () => {
+    const res = await oneShot(createApp(), await rotatedJpeg(), { quality: 70, format: 'png', keepExif: false });
+    expect(res.headers.get('content-type')).toBe('image/png');
+    expect((await sharp(Buffer.from(await res.arrayBuffer())).metadata()).format).toBe('png');
+  });
+
   it('rejects bad one-step requests', async () => {
     const app = createApp();
     expect((await oneShot(app, await plainPng(), '{not json')).status).toBe(400);

@@ -50,6 +50,23 @@ pnpm install
 pnpm build
 ```
 
+## Use with AI assistants (MCP)
+
+While PressIt runs, it also offers a `compress_image` tool over [MCP](https://modelcontextprotocol.io) at `http://127.0.0.1:8787/mcp`, so AI assistants like Claude Code can compress image files on your computer for you.
+
+- **In this folder**, Claude Code picks it up from `.mcp.json` and asks once before using it.
+- **Everywhere else**, add it once: `claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp`
+
+It is on by default. To turn it off or on, run one of these in the `pressit` folder. It takes effect right away, no restart needed:
+
+```sh
+pnpm mcp:off
+pnpm mcp:on
+pnpm mcp:status
+```
+
+It only answers requests from this computer, and never overwrites a file unless asked to.
+
 ## Questions
 
 **Which images work?** JPG, PNG, WebP and GIF, up to 50 MB each. For GIFs, only the first frame is kept.

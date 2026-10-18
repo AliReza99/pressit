@@ -5,12 +5,14 @@ import { serve } from '@hono/node-server';
 import { serveStatic } from '@hono/node-server/serve-static';
 import { Hono } from 'hono';
 import { createApp } from './app.js';
+import { createMcpApp } from './mcp.js';
 
 const port = Number(process.env.PORT ?? 8787);
 // Bind to loopback only: this is a local tool and originals live in memory.
 const hostname = process.env.HOST ?? '127.0.0.1';
 
-const server = new Hono().route('/', createApp());
+// MCP sits outside /api so the Vite dev proxy never exposes it to other hosts.
+const server = new Hono().route('/', createApp()).route('/', createMcpApp());
 
 // After `pnpm build`, serve the web app from the same origin.
 const webDist = fileURLToPath(new URL('../../web/dist', import.meta.url));

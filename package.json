@@ -12,6 +12,9 @@
     "build": "pnpm --filter @pressit/web build && pnpm --filter @pressit/api build",
     "start": "pnpm --filter @pressit/api start",
     "typecheck": "pnpm -r typecheck",
-    "test": "pnpm -r test"
+    "test": "pnpm -r test",
+    "mcp:on": "node scripts/mcp.mjs on",
+    "mcp:off": "node scripts/mcp.mjs off",
+    "mcp:status": "node scripts/mcp.mjs status"
   }
 }
