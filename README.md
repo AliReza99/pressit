@@ -149,9 +149,9 @@ curl -sf http://127.0.0.1:8787/api/compress \
 
 ### Releasing `pressit-mcp`
 
-Bump the version in `apps/mcp/package.json`, `apps/mcp/server.json`, `plugins/pressit/.claude-plugin/plugin.json` and the `McpServer` in `apps/api/src/mcp.ts`, then:
-
 ```sh
+pnpm mcp:version patch   # or minor, major, 1.2.3: sets it in every file that carries it
+git commit -am "chore(mcp): release x.y.z"
 pnpm mcp:publish      # tests the bundle over stdio, then publishes it to npm
 cd apps/mcp && mcp-publisher login github && mcp-publisher publish   # to the MCP registry
 ```

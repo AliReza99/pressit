@@ -14,7 +14,9 @@
       "registryType": "npm",
       "identifier": "pressit-mcp",
       "version": "0.3.0",
-      "transport": { "type": "stdio" }
+      "transport": {
+        "type": "stdio"
+      }
     }
   ]
 }
