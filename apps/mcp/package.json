@@ -1,6 +1,6 @@
 {
   "name": "pressit-mcp",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "MCP server that compresses, resizes and converts images (JPG, PNG, WebP, GIF) on your computer",
   "license": "MIT",
   "type": "module",

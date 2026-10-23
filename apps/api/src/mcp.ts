@@ -246,7 +246,7 @@ const INSTRUCTIONS =
   'without listing or measuring the files first. Originals are never changed.';
 
 export const createMcpServer = () => {
-  const server = new McpServer({ name: 'pressit', version: '0.3.0' }, { instructions: INSTRUCTIONS });
+  const server = new McpServer({ name: 'pressit', version: '1.0.0' }, { instructions: INSTRUCTIONS });
 
   server.registerTool(
     'compress_image',
