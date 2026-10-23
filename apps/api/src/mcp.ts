@@ -245,7 +245,7 @@ const INSTRUCTIONS =
   'converting to WebP or resizing to a maximum width. For a folder, call compress_images once with inputDir, ' +
   'without listing or measuring the files first. Originals are never changed.';
 
-const createMcpServer = () => {
+export const createMcpServer = () => {
   const server = new McpServer({ name: 'pressit', version: '0.3.0' }, { instructions: INSTRUCTIONS });
 
   server.registerTool(

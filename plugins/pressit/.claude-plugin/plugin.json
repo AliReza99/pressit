@@ -1,0 +1,10 @@
+{
+  "name": "pressit",
+  "version": "0.3.0",
+  "description": "Compress, resize and convert images (JPG, PNG, WebP, GIF) on your computer. No API key, no uploads.",
+  "author": {
+    "name": "AliReza99"
+  },
+  "homepage": "https://github.com/AliReza99/pressit",
+  "license": "MIT"
+}

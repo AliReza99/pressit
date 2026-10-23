@@ -1,0 +1,20 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.AliReza99/pressit",
+  "title": "PressIt",
+  "description": "Compress, resize and convert images (JPG, PNG, WebP, GIF) locally. No API key, no uploads.",
+  "repository": {
+    "url": "https://github.com/AliReza99/pressit",
+    "source": "github",
+    "subfolder": "apps/mcp"
+  },
+  "version": "0.3.0",
+  "packages": [
+    {
+      "registryType": "npm",
+      "identifier": "pressit-mcp",
+      "version": "0.3.0",
+      "transport": { "type": "stdio" }
+    }
+  ]
+}

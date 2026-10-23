@@ -1,0 +1,49 @@
+{
+  "name": "pressit-mcp",
+  "version": "0.3.0",
+  "description": "MCP server that compresses, resizes and converts images (JPG, PNG, WebP, GIF) on your computer",
+  "license": "MIT",
+  "type": "module",
+  "mcpName": "io.github.AliReza99/pressit",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AliReza99/pressit.git",
+    "directory": "apps/mcp"
+  },
+  "homepage": "https://github.com/AliReza99/pressit#use-it-from-your-ai-agent-mcp",
+  "keywords": [
+    "mcp",
+    "mcp-server",
+    "image",
+    "compress",
+    "optimize",
+    "webp",
+    "sharp"
+  ],
+  "bin": {
+    "pressit-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "tsup && vitest run",
+    "prepublishOnly": "pnpm build"
+  },
+  "dependencies": {
+    "sharp": "^0.35.5"
+  },
+  "devDependencies": {
+    "@modelcontextprotocol/sdk": "1.32.1",
+    "@pressit/api": "workspace:*",
+    "@types/node": "^26.6.3",
+    "tsup": "^8.5.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.2"
+  }
+}

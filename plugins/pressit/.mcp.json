@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "pressit": {
+      "command": "npx",
+      "args": ["-y", "pressit-mcp@latest"]
+    }
+  }
+}

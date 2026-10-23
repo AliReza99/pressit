@@ -42,13 +42,35 @@ To stop PressIt, press `Ctrl+C` in the terminal. To start it again later, run `p
 
 ## Use it from your AI agent (MCP)
 
-While building a website or app, ask your AI agent to optimize its images, without leaving your editor. PressIt does the work on your computer.
+While building a website or app, ask your AI agent to optimize its images, without leaving your editor. PressIt does the work on your computer. No clone, no API key, nothing to keep running: your agent starts PressIt when it needs it, also after a reboot. You only need [Node.js](https://nodejs.org) 20 or newer.
 
-**Set up once,** while PressIt is running:
+**Set up once** in your agent:
 
-```sh
-claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp
-```
+- **Claude Code:**
+
+  ```sh
+  claude mcp add --scope user pressit -- npx -y pressit-mcp@latest
+  ```
+
+  Or as a plugin, inside Claude Code: `/plugin install pressit --marketplace AliReza99/pressit`.
+
+- **Cursor:** [<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Add to Cursor" height="20">](https://cursor.com/en/install-mcp?name=pressit&config=eyJjb21tYW5kIjoibnB4IiwiYXJncyI6WyIteSIsInByZXNzaXQtbWNwQGxhdGVzdCJdfQ%3D%3D)
+- **VS Code:** [<img src="https://img.shields.io/badge/VS_Code-Install_PressIt-0098FF?style=flat-square" alt="Install in VS Code">](https://insiders.vscode.dev/redirect?url=vscode%3Amcp%2Finstall%3F%257B%2522name%2522%253A%2522pressit%2522%252C%2522command%2522%253A%2522npx%2522%252C%2522args%2522%253A%255B%2522-y%2522%252C%2522pressit-mcp%2540latest%2522%255D%257D)
+- **Codex:** `codex mcp add pressit -- npx -y pressit-mcp@latest`
+- **Claude Desktop, Windsurf, Gemini CLI and others:** add this to the agent's MCP config:
+
+  ```json
+  {
+    "mcpServers": {
+      "pressit": {
+        "command": "npx",
+        "args": ["-y", "pressit-mcp@latest"]
+      }
+    }
+  }
+  ```
+
+The first start downloads PressIt (about 30 MB, mostly the image library), later starts use the copy npm keeps.
 
 **Then just ask,** for example:
 
@@ -63,7 +85,9 @@ You don't have to mention PressIt in the prompt. In our benchmark the agent pick
 
 ![PressIt MCP benchmark](docs/mcp-benchmark.jpg)
 
-To turn the MCP server off, run `pnpm mcp:off`. `pnpm mcp:on` turns it back on.
+To turn PressIt off, remove it in your agent, for example `claude mcp remove --scope user pressit`.
+
+The PressIt app from [Install and use](#install-and-use) also serves MCP while it runs, at `http://127.0.0.1:8787/mcp` (`claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp`). `pnpm mcp:off` turns that off, `pnpm mcp:on` turns it back on.
 
 ## Questions
 
@@ -82,6 +106,7 @@ To turn the MCP server off, run `pnpm mcp:off`. `pnpm mcp:on` turns it back on.
 apps/
   web/      React 19 + Vite UI (TypeScript)
   api/      Hono on Node, image processing with sharp (libvips + mozjpeg)
+  mcp/      The `pressit-mcp` npm package: the api's MCP tools over stdio
 packages/
   shared/   Constants, types and zod schemas shared by both apps
 ```
@@ -90,7 +115,7 @@ packages/
 
 ```sh
 pnpm dev        # web on http://localhost:3104 (proxies /api), api on http://127.0.0.1:8787
-pnpm test       # api tests, run against the real sharp pipeline
+pnpm test       # api and MCP tests, run against the real sharp pipeline
 pnpm typecheck
 pnpm build      # builds web, then bundles the api
 pnpm start      # api serves the built web app on http://127.0.0.1:8787
@@ -120,6 +145,15 @@ curl -sf http://127.0.0.1:8787/api/compress \
   -F file=@photo.jpg \
   -F 'options={"width":1600,"quality":75,"format":"webp","keepExif":false}' \
   -o photo.webp
+```
+
+### Releasing `pressit-mcp`
+
+Bump the version in `apps/mcp/package.json`, `apps/mcp/server.json`, `plugins/pressit/.claude-plugin/plugin.json` and the `McpServer` in `apps/api/src/mcp.ts`, then:
+
+```sh
+pnpm mcp:publish      # tests the bundle over stdio, then publishes it to npm
+cd apps/mcp && mcp-publisher login github && mcp-publisher publish   # to the MCP registry
 ```
 
 `/mcp` is served by the same process as the API but sits outside `/api`, so the Vite dev proxy never forwards it. It rejects any request whose `Host` or `Origin` is not loopback, and returns `404` while `.pressit-mcp-disabled` exists in the repo root (that is all `pnpm mcp:off` does).

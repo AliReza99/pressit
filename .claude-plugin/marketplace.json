@@ -1,0 +1,14 @@
+{
+  "name": "pressit",
+  "description": "PressIt image compression for Claude Code",
+  "owner": {
+    "name": "AliReza99"
+  },
+  "plugins": [
+    {
+      "name": "pressit",
+      "source": "./plugins/pressit",
+      "description": "Compress, resize and convert images on your computer from Claude Code"
+    }
+  ]
+}
