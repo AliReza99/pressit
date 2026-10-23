@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>PressIt MCP benchmark</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@400;500;700&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
+<style>
+  .viz-root {
+    color-scheme: light;
+    --ink: #16150f;
+    --text-secondary: #4f4c43;
+    --muted: #6b675c;
+    --paper: #ebe7dc;
+    --card: #f4f1e8;
+    --track: #dcd7c9;
+    --with: #d9421c;
+    --without: #7a7568;
+    --sans: 'Familjen Grotesk', system-ui, sans-serif;
+    --mono: 'DM Mono', ui-monospace, monospace;
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body { background: #ebe7dc; }
+  .viz-root {
+    width: 1200px;
+    min-height: 1500px;
+    display: flex;
+    flex-direction: column;
+    padding: 56px 64px 44px;
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--sans);
+  }
+  .top { display: flex; justify-content: space-between; align-items: center; padding-bottom: 18px; border-bottom: 2px solid var(--ink); }
+  .brand { display: flex; align-items: center; gap: 12px; font: 700 26px var(--sans); letter-spacing: -0.02em; }
+  .brand svg { width: 30px; height: 30px; }
+  .tag { font: 500 14px var(--mono); color: var(--text-secondary); letter-spacing: 0.04em; text-transform: uppercase; }
+  h1 { margin-top: 34px; font: 700 54px/1.04 var(--sans); letter-spacing: -0.035em; max-width: 1000px; }
+  h1 em { font-style: normal; color: var(--with); }
+  .sub { margin-top: 16px; font: 400 20px/1.45 var(--sans); color: var(--text-secondary); max-width: 960px; }
+
+  .tiles { margin-top: 36px; display: grid; grid-template-columns: repeat(4, 1fr); border: 2px solid var(--ink); background: var(--card); }
+  .tile { padding: 22px 22px 20px; }
+  .tile + .tile { border-left: 2px solid var(--ink); }
+  .tile .num { font: 700 50px/1 var(--sans); letter-spacing: -0.04em; }
+  .tile .num small { font-size: 26px; letter-spacing: -0.02em; color: var(--muted); font-weight: 500; }
+  .tile .lbl { margin-top: 10px; font: 500 16px/1.3 var(--sans); }
+  .tile .fine { margin-top: 6px; font: 400 13px/1.4 var(--mono); color: var(--muted); }
+
+  .section { margin-top: 40px; }
+  .section:last-of-type { margin-bottom: 34px; }
+  .section-head { display: flex; justify-content: space-between; align-items: baseline; }
+  h2 { font: 700 24px var(--sans); letter-spacing: -0.02em; }
+  .legend { display: flex; gap: 22px; font: 500 14px var(--mono); color: var(--text-secondary); }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .legend i { width: 14px; height: 14px; border-radius: 3px; display: inline-block; }
+
+  .charts { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .chart { border: 2px solid var(--ink); background: var(--card); padding: 20px 22px 18px; }
+  .chart h3 { font: 500 15px var(--mono); color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; }
+  .group { margin-top: 16px; }
+  .group .name { font: 500 16px var(--sans); margin-bottom: 6px; }
+  .row { display: flex; align-items: center; gap: 10px; height: 22px; margin-top: 2px; }
+  .track { flex: 1; display: flex; align-items: center; gap: 10px; }
+  .bar { height: 18px; border-radius: 0 4px 4px 0; position: relative; }
+  .bar.with { background: var(--with); }
+  .bar.without { background: var(--without); }
+  .row .val { font: 500 14px var(--mono); color: var(--ink); }
+  .row .val.dim { color: var(--muted); }
+  .row:hover .bar { filter: brightness(1.08); }
+
+  .traces { margin-top: 16px; display: grid; grid-template-columns: 1fr 1fr; gap: 28px; }
+  .trace { border: 2px solid var(--ink); background: var(--card); padding: 20px 22px; }
+  .trace .head { display: flex; justify-content: space-between; align-items: baseline; }
+  .trace .who { font: 700 18px var(--sans); display: flex; align-items: center; gap: 10px; }
+  .trace .who i { width: 12px; height: 12px; border-radius: 3px; }
+  .trace .time { font: 500 15px var(--mono); }
+  .steps { margin-top: 14px; list-style: none; padding: 0; display: grid; gap: 8px; }
+  .steps li { display: grid; grid-template-columns: 26px 1fr; gap: 8px; font: 400 14.5px/1.4 var(--mono); }
+  .steps li b { font-weight: 500; color: var(--muted); }
+  .steps code { font: 500 14.5px var(--mono); background: var(--paper); padding: 1px 5px; }
+  .outcome { margin-top: 14px; padding-top: 12px; border-top: 2px solid var(--track); font: 500 15px/1.45 var(--sans); }
+  .outcome.bad strong { color: var(--with); }
+
+  .foot { margin-top: auto; padding-top: 16px; border-top: 2px solid var(--ink); display: flex; justify-content: space-between; gap: 40px; font: 400 13px/1.55 var(--mono); color: var(--text-secondary); }
+  .foot .repo { font: 500 17px var(--mono); color: var(--ink); white-space: nowrap; }
+</style>
+</head>
+<body>
+<div class="viz-root" id="card">
+  <div class="top">
+    <div class="brand">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><rect width="16" height="16" fill="#16150f"/><rect x="6" y="6" width="10" height="10" fill="#d9421c"/></svg>
+      PressIt MCP
+    </div>
+    <div class="tag">Benchmark · 90 Claude Code runs</div>
+  </div>
+
+  <h1>Ask your agent to shrink images. With PressIt it's <em>one call</em>, not a script.</h1>
+  <p class="sub">Same prompts, same 20 product photos (6.7 MB), Claude Haiku, Sonnet and Opus.
+    The prompts never mention PressIt. Without it, the agent writes its own Python image script.</p>
+
+  <div class="tiles">
+    <div class="tile">
+      <div class="num" data-k="found">27<small>/27</small></div>
+      <div class="lbl">runs picked PressIt on their own</div>
+      <div class="fine">no "use the MCP" in the prompt</div>
+    </div>
+    <div class="tile">
+      <div class="num" data-k="speed">1.7×</div>
+      <div class="lbl">faster to finish</div>
+      <div class="fine">median 22 s vs 38 s</div>
+    </div>
+    <div class="tile">
+      <div class="num" data-k="tokens">−59%</div>
+      <div class="lbl">tokens the agent writes</div>
+      <div class="fine">median 1.2k vs 3.0k output tokens</div>
+    </div>
+    <div class="tile">
+      <div class="num" data-k="orig">0 <small>vs</small> 248</div>
+      <div class="lbl">original files rewritten in place</div>
+      <div class="fine">0 of 27 runs vs 18 of 54 runs</div>
+    </div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>Per prompt, median of every model and run</h2>
+      <div class="legend">
+        <span><i style="background: var(--with)"></i>With PressIt</span>
+        <span><i style="background: var(--without)"></i>Without (own script)</span>
+      </div>
+    </div>
+    <div class="charts" id="charts"></div>
+  </div>
+
+  <div class="section">
+    <div class="section-head">
+      <h2>What the agent actually did</h2>
+      <div class="legend"><span>Sonnet · "The images in this folder are way too heavy. Can you compress them?"</span></div>
+    </div>
+    <div class="traces">
+      <div class="trace">
+        <div class="head">
+          <div class="who"><i style="background: var(--with)"></i>With PressIt</div>
+          <div class="time">7.7 s · 2 steps</div>
+        </div>
+        <ol class="steps">
+          <li><b>1</b><span>Load the PressIt tool</span></li>
+          <li><b>2</b><span><code>compress_images({ inputDir })</code></span></li>
+        </ol>
+        <div class="outcome">6.66 MB → 1.73 MB, 74% smaller. Copies in <code>compressed/</code>, originals untouched.</div>
+      </div>
+      <div class="trace">
+        <div class="head">
+          <div class="who"><i style="background: var(--without)"></i>Without</div>
+          <div class="time">21.5 s · 4 steps</div>
+        </div>
+        <ol class="steps">
+          <li><b>1</b><span>List the folder, find every image</span></li>
+          <li><b>2</b><span>Check for Pillow and ffmpeg, probe each image</span></li>
+          <li><b>3</b><span>Back up, then write and run a Python resize script</span></li>
+          <li><b>4</b><span>Write and run a second pass for the rest</span></li>
+        </ol>
+        <div class="outcome bad">55% smaller, but <strong>13 originals rewritten in place.</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div>Headless Claude Code, fresh folder per run, 3 runs per model and prompt. Medians across Haiku, Sonnet, Opus.
+      Both sides saved about the same space (66% vs 63%). API cost −31% on average, Opus −37%.</div>
+    <div class="repo">github.com/AliReza99/pressit</div>
+  </div>
+</div>
+
+<script>
+  // Medians from bench/summary.py (tag v2).
+  const scenarios = [
+    { name: '"Compress these images"', sec: [11.4, 30.2], tok: [622, 2623] },
+    { name: '"Optimize them for my website"', sec: [15.8, 34.9], tok: [1049, 2744] },
+    { name: 'Mid-task: "add a gallery, make the images web-ready"', sec: [37.1, 58.0], tok: [3194, 6356] },
+  ];
+  const charts = [
+    { title: 'Time to finish (seconds)', key: 'sec', max: 60, fmt: v => `${v.toFixed(0)} s` },
+    { title: 'Tokens the agent writes', key: 'tok', max: 6600, fmt: v => `${(v / 1000).toFixed(1)}k` },
+  ];
+  const root = document.getElementById('charts');
+  for (const c of charts) {
+    const el = document.createElement('div');
+    el.className = 'chart';
+    el.innerHTML = `<h3>${c.title}</h3>` + scenarios.map(s => `
+      <div class="group">
+        <div class="name">${s.name}</div>
+        ${['with', 'without'].map((arm, i) => `
+          <div class="row" title="${arm === 'with' ? 'With PressIt' : 'Without'}: ${c.fmt(s[c.key][i])}">
+            <div class="track"><div class="bar ${arm}" style="width: ${(s[c.key][i] / c.max) * 84}%"></div>
+            <div class="val ${i ? 'dim' : ''}">${c.fmt(s[c.key][i])}</div></div>
+          </div>`).join('')}
+      </div>`).join('');
+    root.appendChild(el);
+  }
+</script>
+</body>
+</html>

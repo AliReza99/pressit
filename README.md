@@ -57,7 +57,11 @@ claude mcp add --transport http --scope user pressit http://127.0.0.1:8787/mcp
 - *"Resize `hero.jpg` to 50% and save it as `public/hero.webp`"*
 - *"Shrink the screenshots in `docs/` and save them to `docs/optimized`"*
 
-By default, images are resized to 70% at quality 70 and saved to a `compressed` folder next to them. Your originals are never changed.
+By default, images are resized to 70% at quality 70 and saved to a `compressed` folder next to them. Your originals are never changed, and an image that would not get smaller is copied as it is. Agents can also pass `maxWidth` (shrink big images to fit, never enlarge small ones), `format: "webp"` and `recursive` for nested folders.
+
+You don't have to mention PressIt in the prompt. In our benchmark the agent picked it on its own in every run, finished 1.7× faster, and never rewrote an original file. Without it, the agent wrote its own script and rewrote the originals in a third of the runs. The setup and raw numbers are in [`bench/`](bench/).
+
+![PressIt MCP benchmark](docs/mcp-benchmark.jpg)
 
 To turn the MCP server off, run `pnpm mcp:off`. `pnpm mcp:on` turns it back on.
 
