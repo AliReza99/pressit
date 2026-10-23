@@ -97,23 +97,60 @@ describe('mcp', () => {
 
   it('writes next to the images by default and keeps the report short', async () => {
     const app = createMcpApp({ isEnabled: () => true });
-    // A tiny PNG grows when re-saved, so it is the only line in the short report.
-    await writeFile(join(dir, 'tiny.png'), await sharp({ create: { width: 2, height: 2, channels: 3, background: '#fff' } }).png().toBuffer());
+    // A tiny PNG grows when re-saved, so the original is copied instead.
+    const tiny = await sharp({ create: { width: 2, height: 2, channels: 3, background: '#fff' } }).png().toBuffer();
+    await writeFile(join(dir, 'tiny.png'), tiny);
 
     const short = await callTool(app, { inputDir: dir, scale: 100 }, 'compress_images');
     const lines = (short.content[0]?.text ?? '').split('\n');
-    expect(lines[0]).toMatch(new RegExp(`^Compressed 2 of 2 images into ${join(dir, 'compressed')}: `));
-    expect(lines.slice(1).filter(Boolean)).toEqual([expect.stringMatching(/^tiny\.png → tiny\.png: .*larger\)$/)]);
+    expect(lines[0]).toMatch(new RegExp(`^Compressed 2 of 2 images into ${join(dir, 'compressed')}: .*; 1 already lean, copied as is\\.$`));
+    expect(lines.slice(1).filter(Boolean)).toEqual([]);
     expect((await readdir(join(dir, 'compressed'))).sort()).toEqual(['in.jpg', 'tiny.png']);
+    expect(await readFile(join(dir, 'compressed', 'tiny.png'))).toEqual(tiny);
 
     const full = await callTool(app, { inputDir: dir, outputDir: join(dir, 'all'), details: true }, 'compress_images');
     expect(full.content[0]?.text).toContain('in.jpg → in.jpg: 280×140 jpeg');
   });
 
+  it('fits images inside maxWidth without enlarging the small ones', async () => {
+    const app = createMcpApp({ isEnabled: () => true });
+    const small = join(dir, 'small.jpg');
+    await writeFile(small, await sharp({ create: { width: 100, height: 50, channels: 3, background: '#123456' } }).jpeg().toBuffer());
+    const out = join(dir, 'out');
+    const result = await callTool(app, { inputDir: dir, outputDir: out, format: 'webp', maxWidth: 200 }, 'compress_images');
+    expect(result.content[0]?.text).toContain('files keep their names with a .webp extension');
+    const widthOf = async (name: string) => (await sharp(await readFile(join(out, name))).metadata()).width;
+    expect([await widthOf('in.webp'), await widthOf('small.webp')]).toEqual([200, 100]);
+
+    const scaled = await callTool(app, { inputPath: input, outputPath: join(dir, 's.jpg'), scale: 25, maxWidth: 200 });
+    expect(scaled.content[0]?.text).toContain('100×50 jpeg');
+    const both = await callTool(app, { inputPath: input, outputPath: join(dir, 'x.jpg'), width: 10, maxWidth: 200 });
+    expect(both.isError).toBe(true);
+  });
+
+  it('walks subfolders when recursive, mirroring them and skipping node_modules', async () => {
+    const app = createMcpApp({ isEnabled: () => true });
+    const src = join(dir, 'site');
+    await mkdir(join(src, 'img', 'team'), { recursive: true });
+    await mkdir(join(src, 'node_modules', 'pkg'), { recursive: true });
+    const jpg = await readFile(input);
+    await writeFile(join(src, 'hero.jpg'), jpg);
+    await writeFile(join(src, 'img', 'team', 'ana.jpg'), jpg);
+    await writeFile(join(src, 'node_modules', 'pkg', 'logo.jpg'), jpg);
+
+    const out = join(src, 'optimized');
+    const flat = await callTool(app, { inputDir: src, outputDir: out }, 'compress_images');
+    expect(flat.content[0]?.text).toMatch(/^Compressed 1 of 1 images/);
+    const deep = await callTool(app, { inputDir: src, outputDir: out, recursive: true, overwrite: true }, 'compress_images');
+    expect(deep.content[0]?.text).toMatch(/^Compressed 2 of 2 images into 2 folders/);
+    expect((await readdir(out, { recursive: true })).sort()).toEqual(['hero.jpg', 'img', join('img', 'team'), join('img', 'team', 'ana.jpg')]);
+  });
+
   it('rejects unclear batch inputs and writing over the originals', async () => {
     const app = createMcpApp({ isEnabled: () => true });
-    const neither = await callTool(app, { outputDir: dir }, 'compress_images');
+    const neither = await callTool(app, {}, 'compress_images');
     expect(neither.isError).toBe(true);
+    expect(neither.content[0]?.text).toContain('Example: {"inputDir"');
     const both = await callTool(app, { inputDir: dir, inputPaths: [input], outputDir: join(dir, 'o') }, 'compress_images');
     expect(both.isError).toBe(true);
     const inPlace = await callTool(app, { inputDir: dir, outputDir: dir, overwrite: true }, 'compress_images');

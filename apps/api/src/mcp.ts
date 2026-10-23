@@ -1,6 +1,6 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { basename, dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import { basename, dirname, extname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { Hono } from 'hono';
 import { to } from 'await-to-js';
@@ -16,7 +16,7 @@ import {
   type Crop,
   type OutputFormat,
 } from '@pressit/shared';
-import { compressOneShot, InputError } from './image.js';
+import { compressOneShot, InputError, inspect } from './image.js';
 
 /**
  * `pnpm mcp:off` creates this file and `pnpm mcp:on` removes it. It is checked
@@ -59,6 +59,9 @@ const IMAGE_EXTENSIONS = new Set([...Object.keys(FORMAT_BY_EXTENSION), '.gif']);
 
 const MAX_BATCH = 500;
 
+/** Folders a recursive batch never walks into. */
+const SKIPPED_DIRS = new Set(['node_modules', 'compressed']);
+
 /** Used when the caller does not say otherwise. Size defaults only when scale, width and height are all missing. */
 const DEFAULT_SCALE = 70;
 const DEFAULT_QUALITY = 70;
@@ -78,8 +81,16 @@ const settingsInput = {
       `Size in percent of the original (or crop), like the SIZE slider in the PressIt app. Use instead of width/height. ` +
         `Defaults to ${DEFAULT_SCALE} when width and height are not given; pass 100 to keep the original size`,
     ),
-  width: z.number().int().min(1).max(MAX_DIMENSION).optional().describe('Output width in px. Alone, keeps the aspect ratio'),
-  height: z.number().int().min(1).max(MAX_DIMENSION).optional().describe('Output height in px. Alone, keeps the aspect ratio'),
+  width: z.number().int().min(1).max(MAX_DIMENSION).optional().describe('Exact output width in px. Alone, keeps the aspect ratio'),
+  height: z.number().int().min(1).max(MAX_DIMENSION).optional().describe('Exact output height in px. Alone, keeps the aspect ratio'),
+  maxWidth: z
+    .number()
+    .int()
+    .min(1)
+    .max(MAX_DIMENSION)
+    .optional()
+    .describe('Shrink to fit this width in px, never enlarge. Best for web, e.g. 1600. Without scale, smaller images keep their size'),
+  maxHeight: z.number().int().min(1).max(MAX_DIMENSION).optional().describe('Shrink to fit this height in px, never enlarge'),
   keepExif: z.boolean().default(false).describe('Keep camera, GPS and date metadata'),
   overwrite: z.boolean().default(false).describe('Replace output files that already exist'),
 };
@@ -95,7 +106,11 @@ const compressInput = {
 const batchInput = {
   inputDir: absolutePath
     .optional()
-    .describe('Absolute path of a folder. Its JPG, PNG, WebP and GIF files are compressed, subfolders are not. Use this or inputPaths'),
+    .describe('Absolute path of a folder. Its JPG, PNG, WebP and GIF files are compressed. Use this or inputPaths'),
+  recursive: z
+    .boolean()
+    .default(false)
+    .describe('Also compress images in subfolders of inputDir (skipping node_modules and dot folders), keeping the folder structure in outputDir'),
   inputPaths: z.array(absolutePath).min(1).max(MAX_BATCH).optional().describe('Absolute paths of the images. Use this or inputDir'),
   outputDir: absolutePath
     .optional()
@@ -105,7 +120,7 @@ const batchInput = {
     ),
   format: outputFormatSchema.optional().describe('Output format for every image. Defaults to each image\'s own format, GIF becomes PNG'),
   ...settingsInput,
-  details: z.boolean().default(false).describe('List every image in the result, not only the ones that failed or got larger'),
+  details: z.boolean().default(false).describe('List every image with its new size and dimensions, not only the ones that failed'),
 };
 
 type Settings = {
@@ -115,6 +130,8 @@ type Settings = {
   scale?: number;
   width?: number;
   height?: number;
+  maxWidth?: number;
+  maxHeight?: number;
   crop?: Crop;
 };
 
@@ -126,16 +143,22 @@ const describeChange = (before: number, after: number) => {
   return saved >= 0 ? `${saved}% smaller` : `${-saved}% larger`;
 };
 
-const sizeConflict = ({ scale, width, height }: Pick<Settings, 'scale' | 'width' | 'height'>) =>
-  scale && (width || height) ? 'Use scale or width/height, not both' : undefined;
+const sizeConflict = ({ scale, width, height, maxWidth, maxHeight }: Omit<Settings, 'quality' | 'keepExif' | 'overwrite'>) => {
+  if (!width && !height) return undefined;
+  if (scale) return 'Use scale or width/height, not both';
+  if (maxWidth || maxHeight) return 'Use maxWidth/maxHeight or width/height, not both';
+  return undefined;
+};
 
-type FileResult = { ok: true; before: number; after: number; text: string } | { ok: false; text: string };
+type FileResult =
+  | { ok: true; before: number; after: number; kept: boolean; text: string }
+  | { ok: false; text: string };
 
 const compressFile = async (
   inputPath: string,
   outputPath: string,
   format: OutputFormat,
-  { overwrite, scale, ...options }: Settings,
+  { overwrite, scale, maxWidth, maxHeight, ...options }: Settings,
 ): Promise<FileResult> => {
   if (resolve(inputPath) === resolve(outputPath)) return { ok: false, text: 'Output would replace the original, pick another path' };
 
@@ -143,28 +166,62 @@ const compressFile = async (
   if (statErr || !info.isFile()) return { ok: false, text: `Cannot read ${inputPath}` };
   if (info.size > MAX_UPLOAD_BYTES) return { ok: false, text: 'File is larger than 50 MB' };
 
-  const sized = scale ?? (options.width || options.height ? undefined : DEFAULT_SCALE);
-  const [err, result] = await to(compressOneShot(await readFile(inputPath), { ...options, format }, sized));
+  const input = await readFile(inputPath);
+  const [inspectErr, meta] = await to(inspect(input));
+  if (inspectErr) return { ok: false, text: 'Not a supported image' };
+
+  const exact = !!(options.width || options.height);
+  let sized = exact ? undefined : (scale ?? (maxWidth || maxHeight ? 100 : DEFAULT_SCALE));
+  let capped = false;
+  if (sized && (maxWidth || maxHeight)) {
+    // Scale first, then shrink further to fit the box. Never enlarges.
+    const base = options.crop ?? meta;
+    const fit = Math.min((maxWidth ?? Infinity) / base.width, (maxHeight ?? Infinity) / base.height) * 100;
+    if (fit < sized) {
+      sized = fit;
+      capped = true;
+    }
+  }
+  const [err, result] = await to(compressOneShot(input, { ...options, format }, sized));
   if (err) return { ok: false, text: err instanceof InputError ? err.message : 'Compression failed' };
 
+  // Re-encoding an already lean file can make it bigger. Then the original is the better
+  // result, as long as it has the right format and size and carries no metadata to strip.
+  const before = info.size;
+  const kept =
+    result.data.length >= before &&
+    !exact &&
+    !capped &&
+    !options.crop &&
+    FORMAT_BY_EXTENSION[extname(inputPath).toLowerCase()] === format &&
+    (options.keepExif || meta.exifBytes === 0);
+  const data = kept ? input : result.data;
+
   await mkdir(dirname(outputPath), { recursive: true });
-  const [writeErr] = await to(writeFile(outputPath, result.data, { flag: overwrite ? 'w' : 'wx' }));
+  const [writeErr] = await to(writeFile(outputPath, data, { flag: overwrite ? 'w' : 'wx' }));
   if (writeErr) {
     const exists = (writeErr as NodeJS.ErrnoException).code === 'EEXIST';
     return { ok: false, text: exists ? `${outputPath} already exists, pass overwrite: true to replace it` : `Cannot write ${outputPath}` };
   }
 
-  const before = info.size;
-  const after = result.data.length;
-  const text = `${result.width}×${result.height} ${format}, ${formatBytes(after)} (was ${formatBytes(before)}, ${describeChange(before, after)})`;
-  return { ok: true, before, after, text };
+  const after = data.length;
+  const text = kept
+    ? `${meta.width}×${meta.height} ${format}, ${formatBytes(after)}, copied as is, it was already smaller than a re-encode`
+    : `${result.width}×${result.height} ${format}, ${formatBytes(after)} (was ${formatBytes(before)}, ${describeChange(before, after)})`;
+  return { ok: true, before, after, kept, text };
 };
 
-const listImages = async (dir: string) => {
-  const entries = await readdir(dir, { withFileTypes: true });
+const listImages = async (dir: string, recursive: boolean, outputDir?: string) => {
+  const entries = await readdir(dir, { withFileTypes: true, recursive });
+  const skipped = (path: string) =>
+    relative(dir, path)
+      .split(sep)
+      .some(part => SKIPPED_DIRS.has(part) || part.startsWith('.')) ||
+    (!!outputDir && !relative(outputDir, path).startsWith('..') && resolve(outputDir) !== resolve(dir));
   return entries
     .filter(e => e.isFile() && IMAGE_EXTENSIONS.has(extname(e.name).toLowerCase()))
-    .map(e => join(dir, e.name))
+    .map(e => join(e.parentPath, e.name))
+    .filter(path => !skipped(dirname(path)))
     .sort();
 };
 
@@ -180,15 +237,23 @@ const fail = (value: string) => ({ isError: true, ...text(value) });
 
 const annotations = { readOnlyHint: false, destructiveHint: false, openWorldHint: false };
 
+/** Shown to the agent up front, before it has loaded the tool descriptions. */
+const INSTRUCTIONS =
+  'PressIt compresses, resizes and converts image files (JPG, PNG, WebP, GIF) on this computer in one call, ' +
+  'so there is no need to write an image script or install a library. Use it whenever a task needs images to be smaller, ' +
+  'lighter or web-ready: compressing or optimizing images, heavy images slowing a site, preparing photos for a website or app, ' +
+  'converting to WebP or resizing to a maximum width. For a folder, call compress_images once with inputDir, ' +
+  'without listing or measuring the files first. Originals are never changed.';
+
 const createMcpServer = () => {
-  const server = new McpServer({ name: 'pressit', version: '0.2.0' });
+  const server = new McpServer({ name: 'pressit', version: '0.3.0' }, { instructions: INSTRUCTIONS });
 
   server.registerTool(
     'compress_image',
     {
       title: 'Compress image',
       description:
-        'Compress, resize, crop or convert one image file on this computer with PressIt, and save the result to outputPath. ' +
+        'Compress, optimize, resize, crop or convert one image file on this computer, and save the result to outputPath. ' +
         `By default it is scaled to ${DEFAULT_SCALE}% at quality ${DEFAULT_QUALITY}. For several images use compress_images.`,
       inputSchema: compressInput,
       annotations,
@@ -209,21 +274,30 @@ const createMcpServer = () => {
     {
       title: 'Compress images',
       description:
-        'Compress, resize or convert many image files on this computer with PressIt in one call, from a folder or a list of paths. ' +
-        `By default images are scaled to ${DEFAULT_SCALE}% at quality ${DEFAULT_QUALITY}, keep their format, and are written to a "${DEFAULT_OUTPUT_DIR}" folder next to them; format "webp" usually saves more. ` +
-        'No need to list, measure or check the files first: pass the folder as inputDir. Existing files are never replaced unless overwrite is set, ' +
-        'and the result gives the total size before and after, plus any image that failed or got larger.',
+        'Compress, optimize, resize or convert many image files on this computer in one call, from a folder or a list of paths. ' +
+        `By default images are scaled to ${DEFAULT_SCALE}% at quality ${DEFAULT_QUALITY}, keep their format, and are written to a "${DEFAULT_OUTPUT_DIR}" folder next to them. ` +
+        'For a website, format "webp" with maxWidth (like 1600) usually works best: big images shrink to fit, small ones keep their size. ' +
+        'Files that would not get smaller are copied as they are. No need to list, measure or check the files first: pass the folder as inputDir. ' +
+        'Originals and existing files are never replaced unless overwrite is set. The result gives the total size before and after, and any image that failed.',
       inputSchema: batchInput,
       annotations,
     },
-    async ({ inputDir, inputPaths, outputDir, format, details, ...settings }) => {
-      if (!inputDir === !inputPaths) return fail('Give inputDir or inputPaths, not both');
+    async ({ inputDir, inputPaths, recursive, outputDir, format, details, ...settings }) => {
+      if (inputDir && inputPaths) return fail('Give inputDir or inputPaths, not both');
+      // Agents that have not loaded the schema yet often call with no arguments, so spell the usual call out.
+      if (!inputDir && !inputPaths) {
+        return fail(
+          'Pass inputDir, the absolute path of a folder, or inputPaths, a list of absolute image paths. ' +
+            'Optional: outputDir, format ("webp", "jpeg", "png"), maxWidth, quality, recursive. ' +
+            'Example: {"inputDir": "/abs/path/to/images", "format": "webp", "maxWidth": 1600}',
+        );
+      }
       const conflict = sizeConflict(settings);
       if (conflict) return fail(conflict);
 
       let inputs = inputPaths ?? [];
       if (inputDir) {
-        const [err, found] = await to(listImages(inputDir));
+        const [err, found] = await to(listImages(inputDir, recursive, outputDir));
         if (err) return fail(`Cannot read folder ${inputDir}`);
         inputs = found;
       }
@@ -234,13 +308,18 @@ const createMcpServer = () => {
       const taken = new Set<string>();
       const written = new Set<string>();
       let done = 0;
+      let kept = 0;
       let before = 0;
       let after = 0;
       // One at a time: sharp already uses every core for each image.
       for (const inputPath of inputs) {
         const fileFormat = format ?? FORMAT_BY_EXTENSION[extname(inputPath).toLowerCase()] ?? 'png';
-        const outputPath = join(outputDir ?? join(dirname(inputPath), DEFAULT_OUTPUT_DIR), outputNameFor(inputPath, fileFormat));
-        const name = basename(inputPath);
+        // A recursive batch mirrors the subfolders inside outputDir.
+        const folder = outputDir
+          ? join(outputDir, inputDir ? relative(inputDir, dirname(inputPath)) : '')
+          : join(dirname(inputPath), DEFAULT_OUTPUT_DIR);
+        const outputPath = join(folder, outputNameFor(inputPath, fileFormat));
+        const name = inputDir ? relative(inputDir, inputPath) : basename(inputPath);
         if (taken.has(outputPath)) {
           lines.push(`${name}: skipped, another image in this batch already writes ${basename(outputPath)}`);
           continue;
@@ -253,6 +332,7 @@ const createMcpServer = () => {
           continue;
         }
         done++;
+        if (result.kept) kept++;
         before += result.before;
         after += result.after;
         written.add(dirname(outputPath));
@@ -262,11 +342,16 @@ const createMcpServer = () => {
 
       const failed = inputs.length - done;
       const where = written.size === 1 ? [...written][0] : `${written.size} folders`;
+      const notes = [
+        kept && `${kept} already lean, copied as is`,
+        failed && `${failed} failed`,
+        format && `files keep their names with a .${extensionFor(format)} extension`,
+      ].filter(Boolean);
       const summary =
         done === 0
           ? `No images were compressed (${failed} failed).`
           : `Compressed ${done} of ${inputs.length} images into ${where}: ${formatBytes(before)} → ${formatBytes(after)} (${describeChange(before, after)})` +
-            (failed ? `, ${failed} failed.` : '.');
+            (notes.length ? `; ${notes.join('; ')}.` : '.');
       const report = lines.length ? [summary, '', ...lines].join('\n') : summary;
       return done === 0 ? fail(report) : text(report);
     },
