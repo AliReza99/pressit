@@ -153,7 +153,7 @@ curl -sf http://127.0.0.1:8787/api/compress \
 pnpm mcp:version patch   # or minor, major, 1.2.3: sets it in every file that carries it
 git commit -am "chore(mcp): release x.y.z"
 pnpm mcp:publish      # tests the bundle over stdio, then publishes it to npm
-cd apps/mcp && mcp-publisher login github && mcp-publisher publish   # to the MCP registry
+pnpm mcp:registry     # then lists that version in the MCP registry (needs `mcp-publisher`, logs in with GitHub when needed)
 ```
 
 `/mcp` is served by the same process as the API but sits outside `/api`, so the Vite dev proxy never forwards it. It rejects any request whose `Host` or `Origin` is not loopback, and returns `404` while `.pressit-mcp-disabled` exists in the repo root (that is all `pnpm mcp:off` does).

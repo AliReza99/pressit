@@ -16,6 +16,7 @@
     "mcp:off": "node scripts/mcp.mjs off",
     "mcp:status": "node scripts/mcp.mjs status",
     "mcp:version": "node scripts/version.mjs",
-    "mcp:publish": "pnpm --filter pressit-mcp test && pnpm --filter pressit-mcp publish"
+    "mcp:publish": "pnpm --filter pressit-mcp test && pnpm --filter pressit-mcp publish",
+    "mcp:registry": "node scripts/registry.mjs"
   }
 }
