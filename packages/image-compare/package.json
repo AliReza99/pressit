@@ -1,6 +1,6 @@
 {
   "name": "@pressit/image-compare",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "React before/after image comparison with a split slider, side-by-side view, wheel zoom and drag to pan",
   "license": "MIT",
   "type": "module",
