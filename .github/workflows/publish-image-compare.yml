@@ -4,7 +4,7 @@ name: Publish @pressit/image-compare
 on:
   push:
     tags:
-      - 'image-compare-v*'
+      - "image-compare-v*"
 
 permissions:
   contents: read
