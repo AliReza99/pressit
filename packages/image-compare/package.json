@@ -1,0 +1,54 @@
+{
+  "name": "@pressit/image-compare",
+  "version": "0.1.0",
+  "description": "React before/after image comparison with a split slider, side-by-side view, wheel zoom and drag to pan",
+  "license": "MIT",
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/AliReza99/pressit.git",
+    "directory": "packages/image-compare"
+  },
+  "keywords": [
+    "react",
+    "image",
+    "compare",
+    "before-after",
+    "slider",
+    "zoom"
+  ],
+  "sideEffects": [
+    "*.css"
+  ],
+  "exports": {
+    ".": "./src/index.tsx",
+    "./style.css": "./src/style.css"
+  },
+  "publishConfig": {
+    "exports": {
+      ".": {
+        "types": "./dist/index.d.ts",
+        "import": "./dist/index.js"
+      },
+      "./style.css": "./dist/style.css"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json && cp src/style.css dist/style.css",
+    "typecheck": "tsc -p tsconfig.json",
+    "prepublishOnly": "pnpm build",
+    "release": "bumpp --commit 'chore(image-compare): release v%s' --tag 'image-compare-v%s'"
+  },
+  "peerDependencies": {
+    "react": ">=19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.3.0",
+    "bumpp": "^10.4.1",
+    "react": "^19.3.0",
+    "typescript": "^7.0.2"
+  }
+}

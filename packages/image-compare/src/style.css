@@ -1,0 +1,216 @@
+/* Defaults have zero specificity so any `.ic-root { --ic-*: … }` override wins regardless of order. */
+:where(.ic-root) {
+  --ic-ink: #16150f;
+  --ic-paper: #ebe7dc;
+  --ic-accent: #d9421c;
+  --ic-font: ui-monospace, monospace;
+  --ic-radius: 0px;
+  --ic-border: 2px;
+}
+
+.ic-root,
+.ic-frame,
+.ic-clip {
+  /* Transparency backdrop: grid of rounded tiles. The clip layer needs it too
+     so the after image does not reveal the before one. */
+  background-color: var(--ic-ink);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='8' height='8'%3E%3Crect x='1.5' y='1.5' width='5' height='5' rx='1.25' fill='white' fill-opacity='0.05'/%3E%3C/svg%3E");
+  background-size: 8px 8px;
+}
+
+.ic-root {
+  position: relative;
+  height: 100%;
+  container-type: size;
+  box-sizing: border-box;
+  overflow: hidden;
+  border-radius: var(--ic-radius);
+  /* Top padding clears the tool buttons so they do not cover the after tag. */
+  padding: 46px 10px 10px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ic-frame {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  cursor: ew-resize;
+  touch-action: none;
+  user-select: none;
+}
+
+.ic-frame:focus-visible {
+  outline: 2px solid var(--ic-accent);
+  outline-offset: 2px;
+}
+
+.ic-frame[data-zoomed] {
+  cursor: grab;
+}
+
+.ic-clip,
+.ic-layer {
+  position: absolute;
+  inset: 0;
+}
+
+.ic-layer {
+  transform-origin: 0 0;
+}
+
+.ic-frame img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  pointer-events: none;
+}
+
+/* Zoomed in, show real pixels so compression artifacts are visible. */
+.ic-frame[data-zoomed] img {
+  image-rendering: pixelated;
+}
+
+.ic-divider {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ic-paper);
+  pointer-events: none;
+}
+
+.ic-knob {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 40px;
+  height: 40px;
+  box-sizing: border-box;
+  background: var(--ic-accent);
+  border: var(--ic-border) solid var(--ic-ink);
+  border-radius: var(--ic-radius);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font: 500 14px var(--ic-font);
+  color: var(--ic-ink);
+}
+
+.ic-tag {
+  position: absolute;
+  top: 8px;
+  font: 500 11px var(--ic-font);
+  padding: 3px 7px;
+  border-radius: calc(var(--ic-radius) / 2);
+  color: var(--ic-ink);
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.ic-tag-before {
+  left: 8px;
+  background: var(--ic-paper);
+}
+
+.ic-tag-after {
+  right: 8px;
+  background: var(--ic-accent);
+}
+
+.ic-tools {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
+  display: flex;
+  gap: 6px;
+}
+
+.ic-tool {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  box-sizing: border-box;
+  border: var(--ic-border) solid var(--ic-ink);
+  border-radius: calc(var(--ic-radius) / 2);
+  background: var(--ic-paper);
+  color: var(--ic-ink);
+  font: 700 16px/1 var(--ic-font);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.ic-tool:hover:not(:disabled),
+.ic-tool[aria-pressed='true'] {
+  background: var(--ic-accent);
+}
+
+.ic-tool:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.ic-pair {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  width: 100%;
+  height: 100%;
+}
+
+/* Divider between the halves, running the full root height. */
+.ic-pair::after {
+  content: '';
+  position: absolute;
+  top: -10px;
+  bottom: -10px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--ic-paper);
+  pointer-events: none;
+}
+
+.ic-half {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 0 10px;
+}
+
+.ic-half:first-child {
+  padding-left: 0;
+}
+
+.ic-half:last-child {
+  padding-right: 0;
+}
+
+.ic-half > .ic-tag {
+  position: static;
+  align-self: flex-start;
+}
+
+/* Its own size container so the frame fits inside it. */
+.ic-half-body {
+  flex: 1;
+  min-height: 0;
+  container-type: size;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ic-root[data-layout='side'] .ic-frame {
+  cursor: default;
+}
+
+.ic-root[data-layout='side'] .ic-frame[data-zoomed] {
+  cursor: grab;
+}

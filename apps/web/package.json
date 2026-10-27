@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json"
   },
   "dependencies": {
+    "@pressit/image-compare": "workspace:*",
     "@pressit/shared": "workspace:*",
     "await-to-js": "^3.0.0",
     "react": "^19.3.0",
