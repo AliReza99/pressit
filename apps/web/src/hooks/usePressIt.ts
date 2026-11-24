@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { to } from 'await-to-js';
 import { extensionFor, MAX_DIMENSION, MAX_UPLOAD_BYTES, type Crop, type OutputFormat, type SourceInfo } from '@pressit/shared';
-import { compressImage, HttpError, releaseImage, uploadImage, type CompressedImage } from '../lib/api';
+import { compressImage, HttpError, releaseImage, uploadImage, uploadWithPreview, type CompressedImage } from '../lib/api';
 import { clamp, formatFromMime } from '../lib/format';
 
 export const SCALE_MIN = 5;
@@ -173,12 +173,13 @@ export const usePressIt = () => {
     let failure: string | null = null;
     // One at a time so the API is not flooded and thumbnails appear in order.
     for (const file of valid) {
-      const [err, info] = await to(uploadImage(file));
+      const [err, source] = await to(uploadWithPreview(file));
       setPending(n => n - 1);
       if (err) {
         failure = err.message;
         continue;
       }
+      const { info, preview } = source;
       const current = itemsRef.current.find(i => i.key === activeKeyRef.current)?.settings;
       const base = defaultsRef.current;
       const inherited = current ?? { scale: base.scale, quality: base.quality, keepExif: base.keepExif, format: base.format };
@@ -186,7 +187,7 @@ export const usePressIt = () => {
         key: String(++nextKey.current),
         file,
         name: defaultName(file),
-        url: URL.createObjectURL(file),
+        url: URL.createObjectURL(preview),
         info,
         remote: { id: info.id },
         settings: { ...inherited, custom: null, crop: null, format: inherited.format ?? formatFromMime(file.type) },

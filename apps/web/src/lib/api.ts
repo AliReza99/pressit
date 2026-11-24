@@ -55,3 +55,24 @@ export const releaseImage = (id: string) => {
   // Best effort cleanup, the server also evicts idle sources on its own.
   void fetch(`/api/images/${id}`, { method: 'DELETE', keepalive: true }).catch(() => undefined);
 };
+
+export const uploadWithPreview = async (file: File): Promise<{ info: SourceInfo; preview: Blob }> => {
+  const info = await uploadImage(file);
+  if (info.format !== 'heif' || file.type === 'image/avif') return { info, preview: file };
+
+  // Keep the comparison lossless at preview resolution and limit large previews.
+  const scale = Math.min(1, 3072 / Math.max(info.width, info.height));
+  try {
+    const { blob } = await compressImage(info.id, {
+      width: Math.max(1, Math.round(info.width * scale)),
+      height: Math.max(1, Math.round(info.height * scale)),
+      format: 'png',
+      quality: 100,
+      keepExif: false,
+    });
+    return { info, preview: blob };
+  } catch (err) {
+    releaseImage(info.id);
+    throw err;
+  }
+};
